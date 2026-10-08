@@ -121,6 +121,8 @@
     // Keep renamed or moved notebooks (and everything inside) expanded.
     const m = state.moved;
     if (m && m.from !== m.to) {
+      // Copy first: the loop adds to the set it would otherwise be iterating.
+      // oxlint-disable-next-line unicorn/no-useless-spread
       for (const p of [...expanded]) {
         if (isInside(p, m.from)) {
           expanded.delete(p);

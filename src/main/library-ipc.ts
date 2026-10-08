@@ -1,6 +1,6 @@
 import { ipcMain, shell } from 'electron';
 import { rm } from 'node:fs/promises';
-import type { BoardData, LibraryState } from '../shared/types';
+import type { LibraryState } from '../shared/types';
 import type { BoardSession } from './board-session';
 import { isSameOrInside, type Library } from './library';
 
