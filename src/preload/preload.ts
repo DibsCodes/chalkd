@@ -72,6 +72,18 @@ const api = {
     onWaiting: (fn: () => void): void => {
       ipcRenderer.on('print:waiting', () => fn());
     },
+    /** Whether Chalkd can add its printer here (Windows), and if it has. */
+    status: (): Promise<{ manageable: boolean; installed: boolean }> =>
+      ipcRenderer.invoke('printer:status'),
+    /** Add or remove the printer (Windows asks for permission). Resolves to an error message or null. */
+    setInstalled: (on: boolean): Promise<string | null> =>
+      ipcRenderer.invoke('printer:set', on),
+  },
+  system: {
+    platform: process.platform,
+    /** Windows Settings › Bluetooth & devices › Touch. */
+    openTouchSettings: (): Promise<void> =>
+      ipcRenderer.invoke('system:open-touch-settings'),
   },
   board: {
     /** Read a board without opening it for editing. */

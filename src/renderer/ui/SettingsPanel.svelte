@@ -28,11 +28,28 @@
     { value: 'dark', label: 'Dark' },
   ];
 
+  const isWindows = window.chalkd.system.platform === 'win32';
+
   let root = $state('');
   let changingFolder = $state(false);
+  let printer = $state<{ manageable: boolean; installed: boolean } | null>(null);
+  let changingPrinter = $state(false);
   onMount(async () => {
     root = await window.chalkd.library.root();
+    printer = await window.chalkd.print.status();
   });
+
+  async function setPrinter(on: boolean) {
+    changingPrinter = true;
+    try {
+      const problem = await window.chalkd.print.setInstalled(on);
+      printer = await window.chalkd.print.status();
+      if (problem) showToast(`Couldn't ${on ? 'add' : 'remove'} the printer: ${problem}`);
+      else showToast(on ? 'Added the Chalkd printer.' : 'Removed the Chalkd printer.');
+    } finally {
+      changingPrinter = false;
+    }
+  }
 
   const bg = $derived(board.background);
   const isDefault = $derived(
@@ -158,6 +175,16 @@
         />
       </label>
     {/if}
+    {#if isWindows}
+      <p class="hint">
+        Windows uses three- and four-finger swipes on the touchscreen for itself. To pan and zoom
+        with them in Chalkd, turn off “Three- and four-finger touch gestures” in Windows’ touch
+        settings.
+      </p>
+      <button type="button" class="wide" onclick={() => window.chalkd.system.openTouchSettings()}>
+        Open Windows touch settings
+      </button>
+    {/if}
   </section>
 
   <section>
@@ -201,6 +228,29 @@
       {changingFolder ? 'Switching…' : 'Change folder…'}
     </button>
   </section>
+
+  {#if printer?.manageable}
+    <section>
+      <h3>Printing</h3>
+      <p class="hint">
+        {printer.installed
+          ? 'The Chalkd printer is set up. Print to it from any app and the pages open as a new board.'
+          : 'Add a Chalkd printer to open anything you print as a new board. Windows asks for permission first.'}
+      </p>
+      <button
+        type="button"
+        class="wide"
+        disabled={changingPrinter}
+        onclick={() => setPrinter(!printer!.installed)}
+      >
+        {changingPrinter
+          ? 'Waiting for Windows…'
+          : printer.installed
+            ? 'Remove the Chalkd printer'
+            : 'Add the Chalkd printer…'}
+      </button>
+    </section>
+  {/if}
 
   <footer>Chalkd 0.1.0 · Free software under the GPL-3.0</footer>
 </aside>
@@ -322,6 +372,10 @@
     display: block;
     font-size: 13px;
     color: var(--muted);
+  }
+  p.hint {
+    margin: 12px 0 10px;
+    line-height: 1.4;
   }
   .folder {
     display: flex;

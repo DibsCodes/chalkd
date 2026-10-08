@@ -98,12 +98,16 @@ async function printHtml(html: string): Promise<Buffer> {
   }
 }
 
-/** For messages: "~/Documents/Lesson.pdf" rather than the full home path. */
+/**
+ * For messages: "~/Documents/Lesson.pdf" rather than the full home path, or
+ * "Documents\Lesson.pdf" on Windows, where "~" means nothing to people.
+ */
 function friendlyPath(file: string): string {
   const home = os.homedir();
-  return file.startsWith(home + path.sep)
-    ? '~' + file.slice(home.length)
-    : file;
+  if (!file.startsWith(home + path.sep)) return file;
+  return process.platform === 'win32'
+    ? file.slice(home.length + 1)
+    : '~' + file.slice(home.length);
 }
 
 function safeFileName(name: string): string {

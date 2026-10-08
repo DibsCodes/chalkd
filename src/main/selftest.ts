@@ -1,6 +1,6 @@
-import { BrowserWindow } from 'electron';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { app, BrowserWindow } from 'electron';
+import { execFileSync, spawn } from 'node:child_process';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -14,6 +14,8 @@ export async function runSelfTest(
   win: BrowserWindow,
   outDir: string,
   printInbox: string,
+  /** Windows: where the Chalkd printer writes each job. */
+  spoolFile: string | null,
 ): Promise<void> {
   mkdirSync(outDir, { recursive: true });
   const wc = win.webContents;
@@ -157,7 +159,26 @@ export async function runSelfTest(
     // this user, into the sandbox inbox).
     const pdf = path.join(outDir, 'worksheet.pdf');
     writeFileSync(pdf, await makeWorksheetPdf());
-    const print = (job: number, title: string) =>
+    const print = (job: number, title: string) => {
+      if (spoolFile) {
+        // As on Windows: the printer port writes the file, then the
+        // printer's task starts a second Chalkd with the job's title, which
+        // hands it to this one.
+        mkdirSync(path.dirname(spoolFile), { recursive: true });
+        copyFileSync(pdf, spoolFile);
+        spawn(
+          process.execPath,
+          [
+            ...(process.defaultApp ? [app.getAppPath()] : []),
+            `--printed=${title}`,
+          ],
+          {
+            env: { ...process.env, CHALKD_SELFTEST: '' },
+            stdio: 'ignore',
+          },
+        );
+        return;
+      }
       execFileSync(
         'sh',
         [
@@ -171,6 +192,7 @@ export async function runSelfTest(
         ],
         { env: { ...process.env, CHALKD_PRINT_INBOX: printInbox } },
       );
+    };
     await shot('p0-before');
     print(7, 'Fractions worksheet.pdf');
     await pause(2500);
@@ -510,10 +532,13 @@ export async function runSelfTest(
     await shot('d11-confirm');
     await tap('Delete board');
     await pause(400);
-    // The sandbox lives on tmpfs, which has no trash: expect the fallback.
+    // On Linux the sandbox lives on tmpfs, which has no trash, so expect the
+    // fallback. Windows' temp folder has a Recycle Bin, so it's gone already.
     await shot('d12-no-trash');
-    await tap('Delete permanently');
-    await pause(400);
+    if (process.platform !== 'win32') {
+      await tap('Delete permanently');
+      await pause(400);
+    }
     await shot('d13-deleted');
     return;
   }

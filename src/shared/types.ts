@@ -196,6 +196,8 @@ export interface AppSettings {
   export: ExportOptions;
   /** Where the last export was saved; the next one starts there. */
   lastExportDir: string | null;
+  /** Windows: the tip about Windows' own three- and four-finger gestures was shown. */
+  touchGestureTipShown: boolean;
 }
 
 export const HIGHLIGHTER_OPACITY = 0.4;
@@ -229,4 +231,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     background: true,
   },
   lastExportDir: null,
+  touchGestureTipShown: false,
 };

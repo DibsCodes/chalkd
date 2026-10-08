@@ -2,7 +2,7 @@
 
 <img src="packaging/icons/chalkd-256.png" alt="Chalkd icon" width="128">
 
-A touch-first infinite whiteboard for teachers, for Linux. Free and open source (GPL-3.0-or-later).
+A touch-first infinite whiteboard for teachers, for Linux and Windows. Free and open source (GPL-3.0-or-later).
 
 See [PLAN.md](PLAN.md) for the design and build phases.
 
@@ -18,6 +18,12 @@ Chalkd then shows up in the app launcher. The install also adds the **Chalkd** p
 
 To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy `PKGBUILD` and `chalkd.install` into an empty folder and run `makepkg -si`.
 
+### Windows
+
+Download `Chalkd-<version>-Setup.exe` from the [latest release](https://github.com/DibsCodes/chalkd/releases/latest) and run it. It installs for you alone (no admin rights needed) and adds Chalkd to the Start menu and desktop. The installer isn't signed yet, so if Windows says "Windows protected your PC", choose **More info › Run anyway**.
+
+To print to Chalkd, open Settings (⚙) › Printing › **Add the Chalkd printer…** (Windows asks for admin permission). Right-clicking a PDF and choosing **Send to › Chalkd** opens it as a new board too. See [packaging/windows](packaging/windows/README.md) for building the installer and how the printer works.
+
 ## Features
 
 - **Touch:** one finger uses the current tool. Two or three fingers move the board; swipe and let go and it keeps gliding to a stop. Four fingers (two on each hand) also zoom: move your hands apart to zoom in, together to zoom out.
@@ -31,13 +37,13 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
   - palm rejection
   - light/dark theme and toolbar size
   - the Chalkd folder location
-- **Saving:** boards autosave to `~/Documents/Chalkd` and the last board reopens on launch.
+- **Saving:** boards autosave to `~/Documents/Chalkd` (`Documents\Chalkd` on Windows) and the last board reopens on launch.
 - **Select (lasso icon):**
   - Draw a loop around things, or tap one, to select.
   - Drag the selection to move it; drag a corner to resize it.
   - **Delete** sits above the selection (or press Delete).
 - **Import (picture icon):** pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs from a file. PDF pages are placed top to bottom, ready to write on. You can also paste a picture (Ctrl+V) or drag files onto the board. Pictures sit underneath ink and highlighter.
-- **Print to Chalkd:** once the printer is added (the package does it; from source, run `npm run printer:install`, which asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. If Chalkd is closed, printing opens it (with the installed package; from source, a printout waits until you next start Chalkd). From source, `npm run printer:uninstall` removes the printer; uninstalling the package does it for you.
+- **Print to Chalkd:** once the printer is added (the package does it; from source, run `npm run printer:install`, which asks for your password; on Windows, use Settings › Printing), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. If Chalkd is closed, printing opens it (with the installed package; from source, a printout waits until you next start Chalkd). From source, `npm run printer:uninstall` removes the printer; uninstalling the package does it for you.
 - **Export (share icon, or Export… on a board in the drawer):**
   - PDF as one page sized to fit everything, or as printable Letter/A4 pages at real size. The orientation is chosen to use fewer pages.
   - PNG of the whole board or of what's on screen, at 2×.
@@ -52,14 +58,15 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
 
 ```sh
 npm install
-npm start          # the app (native Wayland)
-npm run start:x11  # fallback through XWayland
+npm start          # the app (native Wayland on Linux)
+npm run start:x11  # Linux: fallback through XWayland
 npm run spike      # Phase 0 input spike: logs every touch to the terminal
 npm test           # unit tests
 npm run check      # type-check TypeScript and Svelte
 npm run bench      # rendering benchmark, prints timings and quits
-npm run printer:install    # add the Chalkd printer (needs sudo)
-npm run printer:uninstall  # remove it
+npm run make       # installers for this OS (Windows: Setup.exe and a zip)
+npm run printer:install    # Linux: add the Chalkd printer (needs sudo)
+npm run printer:uninstall  # Linux: remove it
 ```
 
 At a desk: the mouse draws, the middle button or scroll wheel pans, and Ctrl+scroll or a touchpad pinch zooms.

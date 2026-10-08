@@ -1,0 +1,4 @@
+# Keep LF everywhere, including checkouts on Windows.
+* text=auto eol=lf
+*.ico binary
+*.png binary
