@@ -43,7 +43,7 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
   - PNG of the whole board or of what's on screen, at 2×.
   - Optionally leave out the board's color and pattern (handy for dark boards). PDF ink is vector, so it stays sharp at any size.
 - **Drawer (☰):** your notebooks and boards as a tree.
-  - Tap a board to open it; tap a notebook to expand it.
+  - Tap a board to open it; the drawer stays open until you tap the board. Tap a notebook to expand it.
   - **+ Board** and **+ Notebook** create new ones next to the board you're on.
   - Long-press an item for Rename, Move to…, New board here (notebooks), Duplicate (boards), and Delete. Duplicate puts a copy just below the board and opens it, ready to rename. Deleting moves it to the system trash.
   - Long-press and drag to reorder, or drop onto a notebook to move something into it.

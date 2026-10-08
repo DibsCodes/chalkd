@@ -326,11 +326,10 @@ export async function runSelfTest(
     await dragRow('Science', 'row:1', 'above');
     await shot('d7-dragged');
 
-    await tap('row:2'); // open a board from the list
+    await tap('row:3'); // opens behind the drawer, which stays open
     await pause(300);
     await shot('d8-opened');
 
-    await tap('[aria-label="Notebooks"]');
     await tap('row:2', 700);
     await tap('Duplicate'); // opens the copy and starts renaming it
     await pause(400);

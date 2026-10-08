@@ -19,7 +19,7 @@
     onexport,
   }: { onclose: () => void; onexport: (path: string) => void } = $props();
 
-  const LONG_PRESS_MS = 450;
+  const LONG_PRESS_MS = 350;
   const SCROLL_SLOP_PX = 10;
   const DRAG_START_PX = 6;
   const HOVER_EXPAND_MS = 600;
@@ -164,17 +164,13 @@
 
   // ---------- actions ----------
 
+  /** Opens behind the drawer, which stays open until the board is tapped. */
   async function openBoard(path: string) {
-    if (path === current) {
-      onclose();
-      return;
-    }
-    if (busy) return;
+    if (path === current || busy) return;
     busy = true;
     try {
       await board.pause();
       await board.show(await window.chalkd.board.open(path));
-      onclose();
     } catch (err) {
       showToast(`Couldn't open that board: ${errorMessage(err)}`);
     } finally {
