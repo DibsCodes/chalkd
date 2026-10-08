@@ -40,6 +40,75 @@
     });
   }
 
+  // ---------- hold-to-drag reordering ----------
+
+  /** Hold a pen or highlighter this long to pick it up and move it. */
+  const DRAG_DELAY_MS = 700;
+
+  let drag: {
+    kind: PresetKind;
+    id: string;
+    buttons: HTMLElement[];
+    /** Button centers when the drag began, in viewport px. */
+    centers: number[];
+    from: number;
+    to: number;
+    startX: number;
+    /** Viewport px per CSS px (the toolbar size setting zooms the toolbar). */
+    scale: number;
+  } | null = null;
+
+  function dragStart(kind: PresetKind, id: string, el: HTMLElement, x: number) {
+    const group = el.parentElement!;
+    const buttons = [...group.querySelectorAll<HTMLElement>('[data-preset]')];
+    const rects = buttons.map((b) => b.getBoundingClientRect());
+    drag = {
+      kind,
+      id,
+      buttons,
+      centers: rects.map((r) => r.left + r.width / 2),
+      from: buttons.indexOf(el),
+      to: buttons.indexOf(el),
+      startX: x,
+      scale: rects[0].width / buttons[0].offsetWidth || 1,
+    };
+    group.classList.add('reordering');
+  }
+
+  function dragMove(el: HTMLElement, x: number) {
+    if (!drag) return;
+    const { centers, from, scale } = drag;
+    // Stay within the group.
+    const dx = Math.min(
+      centers[centers.length - 1] - centers[from],
+      Math.max(centers[0] - centers[from], x - drag.startX),
+    );
+    const center = centers[from] + dx;
+    let to = 0;
+    centers.forEach((c, i) => {
+      if (Math.abs(c - center) < Math.abs(centers[to] - center)) to = i;
+    });
+    drag.to = to;
+    el.style.transform = `translateX(${dx / scale}px)`;
+    // Neighbours step aside to open a gap where it would land.
+    drag.buttons.forEach((b, i) => {
+      if (b === el) return;
+      const shift = from < to && i > from && i <= to ? -1 : from > to && i >= to && i < from ? 1 : 0;
+      const step = (centers[i + shift] - centers[i]) / scale;
+      b.style.transform = shift ? `translateX(${step}px)` : '';
+    });
+  }
+
+  function dragEnd(el: HTMLElement, commit: boolean) {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    // No transition while the buttons swap their offsets for real positions.
+    el.parentElement?.classList.remove('reordering');
+    for (const b of d.buttons) b.style.transform = '';
+    if (commit) settings.movePreset(d.kind, d.id, d.to);
+  }
+
   function eraserTap(el: HTMLElement) {
     if (eraserOn) onEraserMenu(el);
     else settings.selectTool({ type: 'eraser' });
@@ -61,6 +130,12 @@
         use:press={{
           onTap: (el) => presetTap(kind, p.id, el),
           onLongPress: (el) => onEditPreset(kind, p.id, el),
+          drag: {
+            delayMs: DRAG_DELAY_MS,
+            onStart: (el, x) => dragStart(kind, p.id, el, x),
+            onMove: dragMove,
+            onEnd: dragEnd,
+          },
         }}
       >
         {#if kind === 'pen'}
@@ -222,6 +297,19 @@
   }
   .add {
     color: var(--muted);
+  }
+  .group:global(.reordering) > .tool:not(:global(.lifted)) {
+    transition: transform 150ms ease;
+  }
+  /* Picked up for dragging. Drawn inside the button: the scrolling strip clips anything outside. */
+  .tool:global(.lifted) {
+    position: relative;
+    z-index: 1;
+    background: var(--hover);
+    box-shadow: inset 0 0 0 3px var(--accent);
+  }
+  .tool:global(.lifted) > span {
+    scale: 1.3;
   }
   .pen-dot {
     width: var(--d);

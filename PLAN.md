@@ -49,7 +49,8 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 ## Tools
 
 **Pens and highlighters.** These are global presets shared by all boards, with no limit on how many.
-- Tap to select. Long-press opens an editor popover: color swatches + custom color, thickness slider with live preview, Delete.
+- Tap to select. Long-press (released after 450 ms) opens an editor popover: color swatches + custom color, thickness slider with live preview, Delete.
+- Hold 700 ms to pick one up (it's outlined and its dot grows), then slide it left or right to reorder it within its own group; the others step aside. Letting go without sliding opens the editor instead. Once a preset is picked up, the toolbar doesn't scroll.
 - `+` duplicates the current preset and opens its editor.
 - Defaults: pens in black, blue, red, green (3 px); highlighters in yellow, green, pink (20 px, ~40 % opacity).
 - Thickness is measured in board units, so ink scales with zoom like real ink.

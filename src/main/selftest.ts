@@ -290,6 +290,70 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'toolbar') {
+    const order = () =>
+      wc.executeJavaScript(
+        `[...document.querySelectorAll('[aria-label="Pens"] [data-preset]')].map((b) => b.getAttribute('aria-label'))`,
+      ) as Promise<string[]>;
+    const log: Record<string, unknown> = { before: await order() };
+    /** Hold the nth pen for `holdMs`, slide `dx` px, and let go. */
+    const holdSlide = async (n: number, holdMs: number, dx: number) => {
+      const [x0, y] = await center(
+        `[aria-label="Pens"] [data-preset]:nth-child(${n})`,
+      );
+      wc.sendInputEvent({ type: 'mouseMove', x: x0, y });
+      wc.sendInputEvent({
+        type: 'mouseDown',
+        x: x0,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+      await pause(holdMs);
+      if (holdMs >= 700) await shot(`t-held-${holdMs}`);
+      for (let i = 1; i <= 15; i++) {
+        wc.sendInputEvent({
+          type: 'mouseMove',
+          x: x0 + (dx * i) / 15,
+          y,
+          modifiers: ['leftbuttondown'],
+        });
+        await pause(16);
+      }
+      if (dx) await shot(`t-sliding-${holdMs}`);
+      wc.sendInputEvent({
+        type: 'mouseUp',
+        x: x0 + dx,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+      await pause(400);
+    };
+
+    await shot('t1-start');
+    // Picked up after 700 ms: the first pen moves two places right.
+    const [a] = await center('[aria-label="Pens"] [data-preset]:nth-child(1)');
+    const [c] = await center('[aria-label="Pens"] [data-preset]:nth-child(3)');
+    await holdSlide(1, 800, c - a);
+    log.afterDrag = await order();
+    await shot('t2-dropped');
+    // A shorter hold and a slide is a scroll, not a drag: nothing moves.
+    await holdSlide(1, 500, c - a);
+    log.afterShortSlide = await order();
+    // Hold and release without sliding opens the editor.
+    await holdSlide(2, 500, 0);
+    await shot('t3-editor');
+    log.editorOpen = await wc.executeJavaScript(
+      `!!document.querySelector('[role=dialog], .popover')`,
+    );
+    writeFileSync(
+      path.join(outDir, 'toolbar.json'),
+      JSON.stringify(log, null, 2),
+    );
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'drawer') {
     const [w, h] = win.getContentSize();
     const scribble = (dx: number): [number, number][] =>

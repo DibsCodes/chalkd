@@ -75,6 +75,16 @@ class SettingsState {
     return copy;
   }
 
+  /** Move a preset to position `index` within its toolbar group. */
+  movePreset(kind: PresetKind, id: string, index: number): void {
+    const next = [...this.presets(kind)];
+    const from = next.findIndex((p) => p.id === id);
+    if (from < 0 || from === index) return;
+    const [preset] = next.splice(from, 1);
+    next.splice(index, 0, preset);
+    this.setPresets(kind, next);
+  }
+
   deletePreset(kind: PresetKind, id: string): void {
     const list = this.presets(kind);
     if (list.length <= 1) return;

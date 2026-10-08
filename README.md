@@ -21,7 +21,7 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
 ## Features
 
 - **Touch:** one finger uses the current tool. Two or three fingers move the board. Four fingers (two on each hand) also zoom: move your hands apart to zoom in, together to zoom out.
-- **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
+- **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. Hold one a little longer, until it's outlined, and slide it to move it along its row. **+** adds a copy.
 - **Highlighter:** sits underneath pen ink, so it never dulls your writing.
 - **Eraser:** rubs out just what you touch, or whole strokes. Circle some ink and tap inside the circle to erase everything in it. Long-press it for size and Clear Board, which can be undone.
 - **Undo/redo:** toolbar buttons, or Ctrl+Z / Ctrl+Shift+Z.
