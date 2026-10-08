@@ -290,6 +290,66 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'coast') {
+    const [w, h] = win.getContentSize();
+    const cx = w / 2;
+    const cy = h / 2;
+    for (let i = -3; i <= 3; i++) {
+      await drag(
+        Array.from({ length: 40 }, (_, k): [number, number] => [
+          cx + i * 120 + Math.sin(k / 4) * 30,
+          cy - 150 + k * 8,
+        ]),
+      );
+    }
+    const camera = () =>
+      wc.executeJavaScript('window.__chalkdTest.camera()') as Promise<{
+        x: number;
+        y: number;
+        zoom: number;
+      }>;
+    wc.debugger.attach('1.3');
+    const touch = (type: string, points: [number, number][]) =>
+      wc.debugger.sendCommand('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: points.map(([x, y], id) => ({ x, y, id })),
+      });
+    /** Two fingers slide `dx` px over `steps` frames, optionally rest, then lift. */
+    const swipe = async (dx: number, steps: number, restMs: number) => {
+      const at = (o: number): [number, number][] => [
+        [cx - 60 + o, cy],
+        [cx + 60 + o, cy],
+      ];
+      await touch('touchStart', at(0));
+      for (let i = 1; i <= steps; i++) {
+        await touch('touchMove', at((dx * i) / steps));
+        await pause(16);
+      }
+      await pause(restMs);
+      const atRelease = await camera();
+      await touch('touchEnd', []);
+      await pause(150);
+      const soon = await camera();
+      await shot(`c-gliding-${dx}`);
+      await pause(1500);
+      const later = await camera();
+      await pause(300);
+      const settled = await camera();
+      return { atRelease, soon, later, settled };
+    };
+    const log = {
+      flick: await swipe(-200, 8, 0),
+      restThenLift: await swipe(300, 15, 150),
+    };
+    await shot('c-after');
+    wc.debugger.detach();
+    writeFileSync(
+      path.join(outDir, 'coast.json'),
+      JSON.stringify(log, null, 2),
+    );
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'toolbar') {
     const order = () =>
       wc.executeJavaScript(

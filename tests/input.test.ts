@@ -11,6 +11,7 @@ class FakeTarget implements InputTarget {
   camera = new Camera();
   log: string[] = [];
   moves: Point[] = [];
+  velocity: Point | undefined;
 
   toolDown() {
     this.log.push('down');
@@ -29,7 +30,8 @@ class FakeTarget implements InputTarget {
   gestureStart() {
     this.log.push('gestureStart');
   }
-  gestureEnd() {
+  gestureEnd(velocity?: Point) {
+    this.velocity = velocity;
     this.log.push('gestureEnd');
   }
 }
@@ -228,6 +230,60 @@ describe('four fingers', () => {
     move(3, 530, 90);
     expect(target.camera.zoom).toBe(zoom);
     expect(target.camera.x).toBeCloseTo(camX - 30 / zoom);
+  });
+});
+
+describe('release speed (for coasting)', () => {
+  /** Two fingers 100 px apart sliding right 10 px every 10 ms. */
+  function swipe(steps: number) {
+    down(1, 100, 100);
+    clock = 5;
+    down(2, 200, 100);
+    for (let i = 1; i <= steps; i++) {
+      clock = 5 + i * 10;
+      move(1, 100 + i * 10, 100);
+      move(2, 200 + i * 10, 100);
+    }
+  }
+
+  it('reports how fast the pan was moving when the fingers lift', () => {
+    swipe(10);
+    clock += 5;
+    up(1, 200, 100);
+    up(2, 300, 100);
+    expect(target.velocity!.x).toBeCloseTo(1); // 10 px per 10 ms
+    expect(target.velocity!.y).toBeCloseTo(0);
+  });
+
+  it('is in screen px even when zoomed in', () => {
+    target.camera.zoom = 2;
+    swipe(10);
+    up(1, 200, 100);
+    up(2, 300, 100);
+    expect(target.velocity!.x).toBeCloseTo(1);
+  });
+
+  it('is zero if the fingers stopped before lifting', () => {
+    swipe(10);
+    clock += 120;
+    up(1, 200, 100);
+    up(2, 300, 100);
+    expect(target.velocity).toEqual({ x: 0, y: 0 });
+  });
+
+  it('is zero after a pinch zoom', () => {
+    down(1, 200, 90);
+    clock = 5;
+    down(2, 200, 110);
+    down(3, 400, 90);
+    down(4, 400, 110);
+    clock = 30;
+    move(1, 150, 90);
+    move(2, 150, 110);
+    move(3, 450, 90);
+    move(4, 450, 110);
+    for (const id of [1, 2, 3, 4]) up(id, 0, 0);
+    expect(target.velocity).toEqual({ x: 0, y: 0 });
   });
 });
 

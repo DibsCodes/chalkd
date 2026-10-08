@@ -41,6 +41,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 
 - **One finger:** the current tool.
 - **Two or three fingers:** pan only. The view follows the center of the fingers; spreading them does not zoom.
+- **Coasting:** a pan that's still moving when the fingers lift keeps gliding and slows to a stop (exponential decay, about a third of a second; a release at v px/ms glides about v × 325 px). No glide if the fingers had stopped before lifting, or after zooming. Any new touch, scroll, or zoom stops it.
 - **Four fingers:** pan and zoom at the same time. Two pairs of fingers (one per hand) moving apart zoom in, moving together zoom out. Zoom follows the fingers' average distance from their shared center and is anchored there. Lifting a finger drops back to pan only. Zoom range 10 %–800 %.
 - **Second-finger cancel:** drawing starts the instant a finger lands, so there's no lag. If a second finger lands within ~150 ms (before the stroke has traveled far), that stroke is discarded and the gesture becomes pan/zoom.
 - **Palm rejection:** ignore contacts with a large reported contact size (threshold in Settings). Only works if the monitor reports contact size; Phase 0 checks this.

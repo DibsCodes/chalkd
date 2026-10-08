@@ -24,6 +24,13 @@ export const DEFAULT_PEN: StrokeStyle = {
 
 const FIT_MARGIN_PX = 48;
 
+// Coasting after a pan is released (PLAN.md › Input model). Speeds are in
+// screen px/ms. A release at speed v glides about v × COAST_TIME_MS px.
+const COAST_MIN_SPEED = 0.3;
+const COAST_MAX_SPEED = 6;
+const COAST_STOP_SPEED = 0.02;
+const COAST_TIME_MS = 325;
+
 interface CameraTarget {
   x: number;
   y: number;
@@ -139,8 +146,12 @@ export class Editor implements InputTarget {
     this.renderer.beginGesture();
   }
 
-  gestureEnd(): void {
-    this.renderer.endGesture();
+  gestureEnd(velocity?: Point): void {
+    if (velocity && Math.hypot(velocity.x, velocity.y) >= COAST_MIN_SPEED) {
+      this.coast(velocity);
+    } else {
+      this.renderer.endGesture();
+    }
   }
 
   // ---------- commands ----------
@@ -234,6 +245,38 @@ export class Editor implements InputTarget {
       this.camera.y = cy - h2 / zoom;
       this.cameraChanged();
       if (t < 1) {
+        this.animation = requestAnimationFrame(step);
+      } else {
+        this.animation = null;
+        this.renderer.endGesture();
+      }
+    };
+    this.animation = requestAnimationFrame(step);
+  }
+
+  /**
+   * Keep a released pan gliding and slow it to a stop. The renderer stays in
+   * gesture mode until it does; any new touch, scroll, or zoom stops it.
+   */
+  private coast(velocity: Point): void {
+    this.stopAnimation();
+    const speed = Math.hypot(velocity.x, velocity.y);
+    const k = Math.min(1, COAST_MAX_SPEED / speed);
+    let vx = velocity.x * k;
+    let vy = velocity.y * k;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(50, now - last);
+      last = now;
+      // Exact distance for exponential decay over dt, so frame rate doesn't matter.
+      const decay = Math.exp(-dt / COAST_TIME_MS);
+      const travel = COAST_TIME_MS * (1 - decay);
+      this.camera.panBy(vx * travel, vy * travel);
+      vx *= decay;
+      vy *= decay;
+      this.cameraChanged();
+      if (Math.hypot(vx, vy) > COAST_STOP_SPEED) {
         this.animation = requestAnimationFrame(step);
       } else {
         this.animation = null;

@@ -4,6 +4,10 @@ import { clampZoom, type Camera, type Point } from './camera';
 export const CANCEL_WINDOW_MS = 150;
 export const CANCEL_TRAVEL_PX = 24;
 const WHEEL_IDLE_MS = 150;
+/** Release speed is measured over the last this-many ms of a pan... */
+const FLING_WINDOW_MS = 80;
+/** ...and is zero if the fingers had stopped this long before lifting. */
+const FLING_STALE_MS = 50;
 /** Fingers needed to zoom; fewer only pan. Fingers beyond this are ignored. */
 export const PINCH_FINGERS = 4;
 
@@ -16,7 +20,8 @@ export interface InputTarget {
   toolCancel(): void;
   cameraChanged(): void;
   gestureStart(): void;
-  gestureEnd(): void;
+  /** `velocity`: how fast a pan was moving when released, in screen px/ms. */
+  gestureEnd(velocity?: Point): void;
 }
 
 export interface InputOptions {
@@ -71,6 +76,8 @@ export class InputRouter {
   private base: GestureBase | null = null;
   private toolPointer: number | null = null;
   private panPointer: { id: number; x: number; y: number } | null = null;
+  /** Recent camera positions during a touch gesture, for the release speed. */
+  private trail: { t: number; x: number; y: number; zoom: number }[] = [];
   private wheelTimer: ReturnType<typeof setTimeout> | null = null;
   private detach: (() => void) | null = null;
   /** Top-left of the board element in the window; pointer coords are relative to it. */
@@ -238,6 +245,7 @@ export class InputRouter {
       this.target.toolCancel();
       seq.toolOpen = false;
       seq.mode = 'gesture';
+      this.trail = [];
       this.target.gestureStart();
       this.resetBase();
     }
@@ -285,7 +293,22 @@ export class InputRouter {
     this.base = null;
 
     if (seq.toolOpen) this.target.toolUp();
-    if (seq.mode === 'gesture') this.target.gestureEnd();
+    if (seq.mode === 'gesture') this.target.gestureEnd(this.releaseVelocity());
+  }
+
+  /** Screen velocity of a pan at release; zero if it had stopped or was zooming. */
+  private releaseVelocity(): Point {
+    const trail = this.trail;
+    this.trail = [];
+    const last = trail.at(-1);
+    if (!last || this.now() - last.t > FLING_STALE_MS) return { x: 0, y: 0 };
+    const first = trail.find((s) => s.t >= last.t - FLING_WINDOW_MS)!;
+    const dt = last.t - first.t;
+    if (dt <= 0 || first.zoom !== last.zoom) return { x: 0, y: 0 };
+    return {
+      x: (-(last.x - first.x) * last.zoom) / dt,
+      y: (-(last.y - first.y) * last.zoom) / dt,
+    };
   }
 
   private resetBase(): void {
@@ -324,6 +347,14 @@ export class InputRouter {
     cam.x = ax - c.x / zoom;
     cam.y = ay - c.y / zoom;
     this.target.cameraChanged();
+    // Each finger reports its own move; samples this close together are one
+    // frame's worth, so keep only the latest.
+    const t = this.now();
+    if (this.trail.length && t - this.trail[this.trail.length - 1].t < 4) {
+      this.trail.pop();
+    }
+    this.trail.push({ t, x: cam.x, y: cam.y, zoom });
+    while (this.trail[0].t < t - FLING_WINDOW_MS * 2) this.trail.shift();
   }
 
   private gesturePoints(): Track[] {
