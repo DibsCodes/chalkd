@@ -1,0 +1,36 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#board {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 10px 12px;
+  max-width: min(560px, calc(100vw - 48px));
+  background: rgba(20, 24, 31, 0.82);
+  color: #e8ecf2;
+  font:
+    13px/1.45 ui-monospace,
+    'JetBrains Mono',
+    monospace;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
