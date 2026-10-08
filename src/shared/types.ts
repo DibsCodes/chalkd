@@ -156,6 +156,17 @@ export interface EraserSettings {
 
 export type Theme = 'system' | 'light' | 'dark';
 
+export interface ExportOptions {
+  format: 'png' | 'pdf';
+  /** PNG: the whole board, or just what's on screen. */
+  area: 'board' | 'view';
+  /** PDF: one page fitted to the content, or printable pages at real size. */
+  layout: 'fit' | 'pages';
+  paper: 'letter' | 'a4';
+  /** Include the board's color and pattern (off = plain white). */
+  background: boolean;
+}
+
 export interface AppSettings {
   /** Library folder; null means the default (~/Documents/Chalkd). */
   rootDir: string | null;
@@ -172,6 +183,9 @@ export interface AppSettings {
   smoothing: number;
   /** Ignore touches wider than this many px; null = off. */
   palmContactPx: number | null;
+  export: ExportOptions;
+  /** Where the last export was saved; the next one starts there. */
+  lastExportDir: string | null;
 }
 
 export const HIGHLIGHTER_OPACITY = 0.4;
@@ -197,4 +211,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tapGestures: true,
   smoothing: 0.5,
   palmContactPx: null,
+  export: {
+    format: 'pdf',
+    area: 'board',
+    layout: 'fit',
+    paper: 'letter',
+    background: true,
+  },
+  lastExportDir: null,
 };

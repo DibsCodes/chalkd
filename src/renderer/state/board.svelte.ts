@@ -4,9 +4,18 @@ import {
   type AppSettings,
   type Background,
   type BoardData,
+  type Bounds,
+  type ExportOptions,
   type ImportFile,
 } from '../../shared/types';
 import { Autosave } from '../board/autosave';
+import {
+  contentArea,
+  pdfHtml,
+  renderPng,
+  type ExportSource,
+} from '../board/export';
+import { AssetStore } from '../engine/assets';
 import { importFiles } from '../board/import';
 import { Editor } from '../engine/editor';
 import { EraserTool } from '../engine/tools/eraser';
@@ -145,6 +154,58 @@ class BoardController {
       hideToast('import-progress');
       this.importing = false;
     }
+  }
+
+  /**
+   * What to export: the open board as it is right now, or another board
+   * read straight from disk (exporting from the drawer).
+   */
+  async exportSource(path: string | null): Promise<ExportSource> {
+    const editor = this.editor!;
+    if (path === null || path === this.path) {
+      return {
+        name: this.name,
+        items: editor.scene.all(),
+        assets: editor.assets,
+        background: editor.background,
+      };
+    }
+    const data = await window.chalkd.board.read(path);
+    const assets = new AssetStore();
+    assets.load(data.assets);
+    return {
+      name: data.name,
+      items: data.items,
+      assets,
+      background: data.meta.background,
+    };
+  }
+
+  /** The region an export covers, or null if there's nothing to export. */
+  exportArea(
+    src: ExportSource,
+    opts: ExportOptions,
+    isOpenBoard: boolean,
+  ): Bounds | null {
+    if (opts.format === 'png' && opts.area === 'view' && isOpenBoard) {
+      return this.editor!.renderer.viewBounds();
+    }
+    return contentArea(src.items);
+  }
+
+  /** Export and save. Resolves to the saved path, or null if cancelled. */
+  async export(
+    src: ExportSource,
+    area: Bounds,
+    opts: ExportOptions,
+  ): Promise<string | null> {
+    if (opts.format === 'png') {
+      return window.chalkd.export.png(
+        src.name,
+        await renderPng(src, area, opts.background),
+      );
+    }
+    return window.chalkd.export.pdf(src.name, pdfHtml(src, area, opts));
   }
 
   /** Paste the picture on the clipboard, if there is one. */

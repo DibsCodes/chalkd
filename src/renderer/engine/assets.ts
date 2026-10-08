@@ -47,6 +47,29 @@ export class AssetStore {
     return null;
   }
 
+  /** Decode these images (if needed) and wait until they're ready. */
+  async decode(hashes: Iterable<string>): Promise<void> {
+    await Promise.all(
+      [...new Set(hashes)].map(async (hash) => {
+        if (this.bitmaps.get(hash) instanceof ImageBitmap) return;
+        const asset = this.data.get(hash);
+        if (!asset) return;
+        try {
+          const blob = new Blob([asset.bytes as BlobPart], {
+            type: asset.mime,
+          });
+          this.bitmaps.set(hash, await createImageBitmap(blob));
+        } catch {
+          this.bitmaps.set(hash, 'failed');
+        }
+      }),
+    );
+  }
+
+  get(hash: string): AssetData | undefined {
+    return this.data.get(hash);
+  }
+
   takeUnsaved(): AssetData[] {
     const out = [...this.unsaved].map((h) => this.data.get(h)!).filter(Boolean);
     this.unsaved.clear();

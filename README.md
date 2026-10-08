@@ -6,7 +6,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
 
 ## Status
 
-**Phase 5: select and import.** Everything from Phase 4, plus pictures and PDFs.
+**Phase 6 (export).** Everything from Phase 5, plus export. Packaging hasn't started yet; run Chalkd from source.
 
 - **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
 - **Highlighter:** sits underneath pen ink, so it never dulls your writing.
@@ -24,6 +24,10 @@ See [PLAN.md](PLAN.md) for the design and build phases.
   - Drag the selection to move it; drag a corner to resize it.
   - **Delete** sits above the selection (or press Delete).
 - **Import (picture icon):** pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs from a file. PDF pages are placed top to bottom, ready to write on. You can also paste a picture (Ctrl+V) or drag files onto the board. Pictures sit underneath ink and highlighter.
+- **Export (share icon, or Export… on a board in the drawer):**
+  - PDF as one page sized to fit everything, or as printable Letter/A4 pages at real size. The orientation is chosen to use fewer pages.
+  - PNG of the whole board or of what's on screen, at 2×.
+  - Optionally leave out the board's color and pattern (handy for dark boards). PDF ink is vector, so it stays sharp at any size.
 - **Drawer (☰):** your notebooks and boards as a tree.
   - Tap a board to open it; tap a notebook to expand it.
   - **+ Board** and **+ Notebook** create new ones next to the board you're on.

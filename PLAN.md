@@ -128,7 +128,9 @@ Imported bytes are copied into the board file, so deleting the original later is
 
 The Export button (also in the drawer menu) opens a dialog:
 - **PNG:** whole board or current view, at 2×.
-- **PDF:** one page fitted to the content, or tiled across Letter pages (A4 can be set in Settings).
+- **PDF:** one page fitted to the content, or tiled across Letter or A4 pages at real size (1 board unit = 1/96 inch). Paper choice is in the export dialog itself, not Settings. Portrait or landscape is picked to use fewer pages.
+- **Board background:** optional (color and pattern), so dark boards don't burn printer ink.
+- The dialog remembers your last choices and the folder you last exported to.
 
 PDFs are made by rendering the board to SVG in a hidden window and using Electron's `printToPDF`, so ink stays sharp when printed.
 
@@ -142,7 +144,6 @@ PDFs are made by rendering the board to SVG in a hidden window and using Electro
   - Tap gestures on/off
   - Smoothing strength
   - Palm-rejection threshold
-  - PDF page size
 
 ## Project layout
 

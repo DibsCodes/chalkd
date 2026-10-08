@@ -8,6 +8,7 @@
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
   import Drawer from './ui/Drawer.svelte';
   import EraserMenu from './ui/EraserMenu.svelte';
+  import ExportDialog from './ui/ExportDialog.svelte';
   import ImportMenu from './ui/ImportMenu.svelte';
   import SelectionBar from './ui/SelectionBar.svelte';
   import { IMPORTABLE } from './board/import';
@@ -28,6 +29,8 @@
   let popover = $state<OpenPopover | null>(null);
   let settingsOpen = $state(false);
   let drawerOpen = $state(false);
+  /** Board being exported: null = the open board; undefined = no dialog. */
+  let exporting = $state<string | null | undefined>(undefined);
   let ready = $state(false);
 
   const editing = $derived.by(() => {
@@ -115,7 +118,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (popover || settingsOpen || drawerOpen || dialogs.confirm) return;
+    if (popover || settingsOpen || drawerOpen || dialogs.confirm || exporting !== undefined) return;
     if (e.target instanceof HTMLInputElement) return;
     const key = e.key.toLowerCase();
     const editor = board.editor;
@@ -155,6 +158,10 @@
       (popover = { type: 'preset', kind, id, anchor: el.getBoundingClientRect() })}
     onEraserMenu={(el) => (popover = { type: 'eraser', anchor: el.getBoundingClientRect() })}
     onImport={(el) => (popover = { type: 'import', anchor: el.getBoundingClientRect() })}
+    onExport={() => {
+      popover = null;
+      exporting = null;
+    }}
     onSettings={() => {
       popover = null;
       settingsOpen = true;
@@ -206,10 +213,13 @@
   {/if}
 
   {#if drawerOpen}
-    <Drawer onclose={() => (drawerOpen = false)} />
+    <Drawer onclose={() => (drawerOpen = false)} onexport={(path) => (exporting = path)} />
   {/if}
   {#if settingsOpen}
     <SettingsPanel onclose={() => (settingsOpen = false)} />
+  {/if}
+  {#if exporting !== undefined}
+    <ExportDialog path={exporting} onclose={() => (exporting = undefined)} />
   {/if}
   <ConfirmDialog />
 </div>

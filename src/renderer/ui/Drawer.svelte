@@ -14,7 +14,10 @@
   import Popover from './Popover.svelte';
   import { errorMessage, showToast } from './toast';
 
-  let { onclose }: { onclose: () => void } = $props();
+  let {
+    onclose,
+    onexport,
+  }: { onclose: () => void; onexport: (path: string) => void } = $props();
 
   const LONG_PRESS_MS = 450;
   const SCROLL_SLOP_PX = 10;
@@ -592,6 +595,18 @@
           }}
         >
           <Icon name="plus" size={20} /> New board here
+        </button>
+      {/if}
+      {#if node.type === 'board'}
+        <button
+          type="button"
+          onclick={() => {
+            const board = node.path; // read before `menu` (and so `node`) is cleared
+            menu = null;
+            onexport(board);
+          }}
+        >
+          <Icon name="share" size={20} /> Export…
         </button>
       {/if}
       <button

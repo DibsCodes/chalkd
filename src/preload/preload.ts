@@ -47,7 +47,17 @@ const api = {
     clipboardImage: (): Promise<ImportFile | null> =>
       ipcRenderer.invoke('clipboard:read-image'),
   },
+  export: {
+    /** Asks where to save; resolves to where it went (for display), or null if cancelled. */
+    png: (name: string, bytes: Uint8Array): Promise<string | null> =>
+      ipcRenderer.invoke('export:png', name, bytes),
+    pdf: (name: string, html: string): Promise<string | null> =>
+      ipcRenderer.invoke('export:pdf', name, html),
+  },
   board: {
+    /** Read a board without opening it for editing. */
+    read: (rel: string): Promise<BoardData> =>
+      ipcRenderer.invoke('board:read', rel),
     openInitial: (): Promise<BoardData> =>
       ipcRenderer.invoke('board:open-initial'),
     open: (rel: string): Promise<BoardData> =>

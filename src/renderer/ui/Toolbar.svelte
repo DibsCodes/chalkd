@@ -10,9 +10,11 @@
     onEditPreset,
     onEraserMenu,
     onImport,
+    onExport,
     onSettings,
   }: {
     onMenu: () => void;
+    onExport: () => void;
     onImport: (anchor: HTMLElement) => void;
     onEditPreset: (kind: PresetKind, id: string, anchor: HTMLElement) => void;
     onEraserMenu: (anchor: HTMLElement) => void;
@@ -154,6 +156,9 @@
     onclick={(e) => onImport(e.currentTarget)}
   >
     <Icon name="image-plus" />
+  </button>
+  <button type="button" class="tool" aria-label="Export" onclick={onExport}>
+    <Icon name="share" />
   </button>
 
   <div class="spacer"></div>

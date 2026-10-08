@@ -1,11 +1,11 @@
 import type { Camera } from './camera';
 import type { AssetStore } from './assets';
+import { drawPattern } from './background';
 import { drawItem } from './draw';
 import {
   DEFAULT_BACKGROUND,
   type Background,
   type Bounds,
-  type Pattern,
 } from '../../shared/types';
 import type { Scene, SceneChange } from './scene';
 
@@ -287,50 +287,11 @@ export class Renderer {
 
   private drawBackground(): void {
     const ctx = this.bg;
-    const { color, pattern } = this._background;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = color;
+    ctx.fillStyle = this._background.color;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    if (pattern === 'blank') return;
-
-    const zoom = this.camera.zoom;
-    // Coarsen the pattern as you zoom out so it never turns into mush.
-    const minScreenGap = pattern === 'dots' ? 16 : 10;
-    let spacing = this._background.spacing;
-    while (spacing * zoom < minScreenGap) spacing *= 5;
-
-    const view = this.viewBounds();
-    const x0 = Math.floor(view.minX / spacing) * spacing;
-    const y0 = Math.floor(view.minY / spacing) * spacing;
-    const ink = patternInk(color, pattern);
     this.setWorldTransform(ctx);
-    ctx.beginPath();
-
-    if (pattern === 'dots') {
-      const r = 1.25 / zoom;
-      for (let y = y0; y <= view.maxY; y += spacing) {
-        for (let x = x0; x <= view.maxX; x += spacing) {
-          ctx.rect(x - r, y - r, r * 2, r * 2);
-        }
-      }
-      ctx.fillStyle = ink;
-      ctx.fill();
-      return;
-    }
-
-    if (pattern === 'grid') {
-      for (let x = x0; x <= view.maxX; x += spacing) {
-        ctx.moveTo(x, view.minY);
-        ctx.lineTo(x, view.maxY);
-      }
-    }
-    for (let y = y0; y <= view.maxY; y += spacing) {
-      ctx.moveTo(view.minX, y);
-      ctx.lineTo(view.maxX, y);
-    }
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 1 / zoom;
-    ctx.stroke();
+    drawPattern(ctx, this._background, this.viewBounds(), this.camera.zoom);
   }
 }
 
@@ -338,22 +299,4 @@ function intersects(a: Bounds, b: Bounds): boolean {
   return (
     a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY
   );
-}
-
-/** Subtle pattern color that works on both light and dark boards. */
-function patternInk(background: string, pattern: Pattern): string {
-  const dark = luminance(background) < 0.4;
-  if (pattern === 'dots')
-    return dark ? 'rgba(255,255,255,0.28)' : 'rgba(30,45,70,0.26)';
-  return dark ? 'rgba(255,255,255,0.12)' : 'rgba(30,45,70,0.11)';
-}
-
-function luminance(hex: string): number {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return 1;
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }

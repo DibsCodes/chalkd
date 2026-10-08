@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { AppSettings, BoardChanges } from '../shared/types';
 import { BoardSession } from './board-session';
 import { Library } from './library';
+import { registerExportIpc } from './export-ipc';
 import { registerImportIpc } from './import-ipc';
 import { registerLibraryIpc } from './library-ipc';
 import { runSelfTest } from './selftest';
@@ -148,6 +149,7 @@ registerLibraryIpc(
   () => session,
 );
 registerImportIpc();
+registerExportIpc(() => library, settings);
 
 ipcMain.handle('board:write', (_event, changes: BoardChanges) => {
   session.write(changes);

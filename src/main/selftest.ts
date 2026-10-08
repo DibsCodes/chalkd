@@ -206,6 +206,53 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'export') {
+    const [w, h] = win.getContentSize();
+    const testImport = async (name: string, mime: string, bytes: Buffer) => {
+      await wc.executeJavaScript(
+        `window.__chalkdTest.import([{ name: ${JSON.stringify(name)}, mime: ${JSON.stringify(mime)}, b64: ${JSON.stringify(bytes.toString('base64'))} }])`,
+      );
+      await pause(600);
+    };
+    // A grid board with a worksheet page, pen ink, a dot, and a highlighter.
+    await tap('[aria-label="Settings"]');
+    await tap('Grid');
+    await key('Escape');
+    await testImport(
+      'worksheet.pdf',
+      'application/pdf',
+      await makeWorksheetPdf(),
+    );
+    await key('0', ['control']);
+    await pause(400);
+    const wave: [number, number][] = [];
+    for (let i = 0; i <= 80; i++)
+      wave.push([w / 2 - 160 + i * 4, h / 2 + 60 + Math.sin(i / 6) * 30]);
+    await drag(wave);
+    await drag([[w / 2 + 200, h / 2 + 60]]);
+    await tap('[data-preset="hl-yellow"]');
+    await drag(
+      Array.from(
+        { length: 40 },
+        (_, i) => [w / 2 - 170 + i * 9, h / 2 + 64] as [number, number],
+      ),
+    );
+
+    const exportWith = async (label: string, choices: string[]) => {
+      await tap('[aria-label="Export"]');
+      for (const c of choices) await tap(c);
+      await shot(`e-dialog-${label}`);
+      await tap('Export…');
+      await pause(2500);
+    };
+    await exportWith('pdf-fit', ['PDF', 'One page']);
+    await exportWith('pdf-pages', ['PDF', 'Printable pages', 'Letter']);
+    await exportWith('png-board', ['Picture (PNG)', 'Whole board']);
+    await exportWith('png-view', ['Picture (PNG)', 'What’s on screen']);
+    await shot('e-done');
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'drawer') {
     const [w, h] = win.getContentSize();
     const scribble = (dx: number): [number, number][] =>
