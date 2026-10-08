@@ -138,31 +138,15 @@ describe('two fingers', () => {
     expect(target.camera.y).toBeCloseTo(-50);
   });
 
-  it('pinch zooms around the midpoint between the fingers', () => {
+  it('only pans: spreading two fingers does not zoom', () => {
     down(1, 100, 100);
     clock = 10;
     down(2, 200, 100);
-    const anchor = target.camera.toWorld(150, 100);
     clock = 50;
     move(1, 50, 100);
     move(2, 250, 100);
-    expect(target.camera.zoom).toBeCloseTo(2);
-    const after = target.camera.toScreen(anchor.x, anchor.y);
-    expect(after.x).toBeCloseTo(150);
-    expect(after.y).toBeCloseTo(100);
-  });
-
-  it('keeps panning smoothly after one finger of a pinch lifts', () => {
-    down(1, 100, 100);
-    clock = 10;
-    down(2, 200, 100);
-    clock = 50;
-    move(2, 300, 100); // zoom to 2x
-    up(2, 300, 100);
-    const camX = target.camera.x;
-    move(1, 140, 100); // remaining finger moves 40 screen px
-    expect(target.camera.zoom).toBeCloseTo(2);
-    expect(target.camera.x).toBeCloseTo(camX - 40 / 2);
+    expect(target.camera.zoom).toBe(1);
+    expect(target.camera.x).toBeCloseTo(0);
   });
 
   it('does not cancel a stroke that already traveled far', () => {
@@ -189,6 +173,61 @@ describe('two fingers', () => {
     up(2, 400, 400);
     expect(target.log).toEqual(['down', 'move', 'up']);
     expect(target.camera.x).toBe(0);
+  });
+});
+
+describe('four fingers', () => {
+  // Two pairs of fingers, one per hand, 200 px apart around (300, 100).
+  function fourDown() {
+    down(1, 200, 90);
+    clock = 10;
+    down(2, 200, 110);
+    clock = 30;
+    down(3, 400, 90);
+    down(4, 400, 110);
+  }
+
+  it('pinch zooms when the two pairs move apart', () => {
+    fourDown();
+    const anchor = target.camera.toWorld(300, 100);
+    clock = 80;
+    // Each pair moves 100 px outward: twice as far from the center.
+    move(1, 100, 90);
+    move(2, 100, 110);
+    move(3, 500, 90);
+    move(4, 500, 110);
+    expect(target.camera.zoom).toBeCloseTo(2, 1);
+    const after = target.camera.toScreen(anchor.x, anchor.y);
+    expect(after.x).toBeCloseTo(300);
+    expect(after.y).toBeCloseTo(100);
+  });
+
+  it('zooms out when the pairs move together', () => {
+    fourDown();
+    clock = 80;
+    move(1, 250, 90);
+    move(2, 250, 110);
+    move(3, 350, 90);
+    move(4, 350, 110);
+    expect(target.camera.zoom).toBeLessThan(0.6);
+  });
+
+  it('keeps panning without zoom after a finger lifts', () => {
+    fourDown();
+    clock = 80;
+    move(1, 100, 90);
+    move(2, 100, 110);
+    move(3, 500, 90);
+    move(4, 500, 110);
+    const zoom = target.camera.zoom;
+    up(4, 500, 110);
+    const camX = target.camera.x;
+    // The remaining three fingers all move 30 screen px.
+    move(1, 130, 90);
+    move(2, 130, 110);
+    move(3, 530, 90);
+    expect(target.camera.zoom).toBe(zoom);
+    expect(target.camera.x).toBeCloseTo(camX - 30 / zoom);
   });
 });
 

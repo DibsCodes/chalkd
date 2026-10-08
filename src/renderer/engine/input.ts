@@ -4,6 +4,8 @@ import { clampZoom, type Camera, type Point } from './camera';
 export const CANCEL_WINDOW_MS = 150;
 export const CANCEL_TRAVEL_PX = 24;
 const WHEEL_IDLE_MS = 150;
+/** Fingers needed to zoom; fewer only pan. Fingers beyond this are ignored. */
+export const PINCH_FINGERS = 4;
 
 /** What the router drives. Tool points are in world coordinates. */
 export interface InputTarget {
@@ -53,13 +55,14 @@ interface Sequence {
 
 interface GestureBase {
   centroid: Point;
-  dist: number | null;
+  /** Mean finger distance from the centroid; null when too few fingers to zoom. */
+  spread: number | null;
   cam: { x: number; y: number; zoom: number };
 }
 
 /**
  * Turns raw pointer events into tool strokes, camera moves, and tap gestures.
- * 1 finger = tool; 2 fingers = pan + pinch; quick 2/3-finger taps = undo/redo.
+ * 1 finger = tool; 2–3 fingers = pan; 4 fingers = pan + pinch zoom.
  */
 export class InputRouter {
   private touches = new Map<number, Track>();
@@ -286,15 +289,16 @@ export class InputRouter {
   }
 
   private resetBase(): void {
-    const pts = [...this.touches.values()].slice(0, 2);
+    const pts = this.gesturePoints();
     if (pts.length === 0) {
       this.base = null;
       return;
     }
     const cam = this.target.camera;
+    const c = centroid(pts);
     this.base = {
-      centroid: centroid(pts),
-      dist: pts.length === 2 ? distance(pts[0], pts[1]) : null,
+      centroid: c,
+      spread: pts.length >= PINCH_FINGERS ? spread(pts, c) : null,
       cam: { x: cam.x, y: cam.y, zoom: cam.zoom },
     };
   }
@@ -302,12 +306,14 @@ export class InputRouter {
   private applyGesture(): void {
     const base = this.base;
     if (!base) return;
-    const pts = [...this.touches.values()].slice(0, 2);
+    const pts = this.gesturePoints();
     if (pts.length === 0) return;
     const c = centroid(pts);
+    // Two hands moving apart or together change how far the fingers sit
+    // from their shared center; that ratio is the zoom.
     const zoom =
-      pts.length === 2 && base.dist
-        ? clampZoom(base.cam.zoom * (distance(pts[0], pts[1]) / base.dist))
+      pts.length >= PINCH_FINGERS && base.spread
+        ? clampZoom(base.cam.zoom * (spread(pts, c) / base.spread))
         : base.cam.zoom;
     // Keep the world point that was under the starting centroid under the
     // current centroid: one rule gives pan and pinch together.
@@ -318,6 +324,10 @@ export class InputRouter {
     cam.x = ax - c.x / zoom;
     cam.y = ay - c.y / zoom;
     this.target.cameraChanged();
+  }
+
+  private gesturePoints(): Track[] {
+    return [...this.touches.values()].slice(0, PINCH_FINGERS);
   }
 
   private travel(id: number): number {
@@ -339,13 +349,17 @@ export class InputRouter {
 }
 
 function centroid(pts: { x: number; y: number }[]): Point {
-  if (pts.length === 1) return { x: pts[0].x, y: pts[0].y };
-  return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  let x = 0;
+  let y = 0;
+  for (const p of pts) {
+    x += p.x;
+    y += p.y;
+  }
+  return { x: x / pts.length, y: y / pts.length };
 }
 
-function distance(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function spread(pts: { x: number; y: number }[], c: Point): number {
+  let sum = 0;
+  for (const p of pts) sum += Math.hypot(p.x - c.x, p.y - c.y);
+  return sum / pts.length;
 }

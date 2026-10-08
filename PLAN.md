@@ -13,7 +13,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 | Drawer order | Creation order, oldest on top; drag-and-drop to reorder or move into a notebook |
 | Storage | Plain folders under `~/Documents/Chalkd`, one `.chalkd` file per board; no built-in sync |
 | Naming | New boards are auto-named (`Oct 7 · 10:42`); rename later with a keyboard |
-| Gestures | 1 finger = current tool · 2 fingers = pan + pinch zoom (tap-to-undo/redo was tried and dropped: it didn't register on the classroom touchscreen TV and wasn't wanted) |
+| Gestures | 1 finger = current tool · 2–3 fingers = pan · 4 fingers (two pairs) = pan + pinch zoom (tap-to-undo/redo was tried and dropped: it didn't register on the classroom touchscreen TV and wasn't wanted) |
 | Ink | Uniform width with smoothing |
 | Eraser | Partial (default) and whole-stroke modes |
 | Look | White boards by default; per-board background color + pattern |
@@ -40,10 +40,11 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 ## Input model
 
 - **One finger:** the current tool.
-- **Two fingers:** pan and pinch-zoom at the same time, anchored at the midpoint between the fingers. Zoom range 10 %–800 %.
+- **Two or three fingers:** pan only. The view follows the center of the fingers; spreading them does not zoom.
+- **Four fingers:** pan and zoom at the same time. Two pairs of fingers (one per hand) moving apart zoom in, moving together zoom out. Zoom follows the fingers' average distance from their shared center and is anchored there. Lifting a finger drops back to pan only. Zoom range 10 %–800 %.
 - **Second-finger cancel:** drawing starts the instant a finger lands, so there's no lag. If a second finger lands within ~150 ms (before the stroke has traveled far), that stroke is discarded and the gesture becomes pan/zoom.
 - **Palm rejection:** ignore contacts with a large reported contact size (threshold in Settings). Only works if the monitor reports contact size; Phase 0 checks this.
-- Fingers beyond the first two are ignored during a gesture.
+- Fingers beyond the first four are ignored during a gesture.
 
 ## Tools
 
