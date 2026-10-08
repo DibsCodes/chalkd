@@ -7,6 +7,7 @@ import {
   type Bounds,
   type ExportOptions,
   type ImportFile,
+  type PrintJob,
 } from '../../shared/types';
 import { Autosave } from '../board/autosave';
 import {
@@ -203,6 +204,26 @@ class BoardController {
       );
     }
     return window.chalkd.export.pdf(src.name, pdfHtml(src, area, opts));
+  }
+
+  /** Open a printout as a new board, next to the one that's open. */
+  async receivePrint(job: PrintJob): Promise<void> {
+    let imported: boolean;
+    try {
+      await this.pause();
+      const opened = await window.chalkd.print.openBoard(job.id, job.title);
+      imported = opened.imported;
+      await this.show(opened.board);
+    } catch (err) {
+      showToast(`Couldn't make a board for the printout: ${errorMessage(err)}`);
+      return;
+    } finally {
+      this.resume();
+    }
+    if (imported) return;
+    await this.import([
+      { name: this.name, mime: 'application/pdf', bytes: job.bytes },
+    ]);
   }
 
   /** Paste the picture on the clipboard, if there is one. */

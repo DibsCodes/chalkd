@@ -24,7 +24,9 @@
     "bench": "CHALKD_BENCH=1 electron-forge start",
     "test": "vitest run",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "postinstall": "node scripts/copy-pdfjs.mjs"
+    "postinstall": "node scripts/copy-pdfjs.mjs",
+    "printer:install": "sudo sh scripts/printer/install.sh",
+    "printer:uninstall": "sudo sh scripts/printer/uninstall.sh"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",

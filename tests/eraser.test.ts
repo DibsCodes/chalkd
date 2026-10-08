@@ -212,7 +212,13 @@ describe('findLoop', () => {
 
   it('ignores open arcs, straight lines, and tiny loops', () => {
     expect(findLoop(flat(circle(0, 0, 100, 0.6)), 40, 60)).toBeNull();
-    expect(findLoop(line().map((v) => v * 3), 40, 60)).toBeNull();
+    expect(
+      findLoop(
+        line().map((v) => v * 3),
+        40,
+        60,
+      ),
+    ).toBeNull();
     expect(findLoop(flat(circle(0, 0, 20)), 40, 60)).toBeNull();
   });
 

@@ -124,6 +124,15 @@ The Import button opens a popover:
 
 Imported bytes are copied into the board file, so deleting the original later is safe. Each picture is stored once per board (keyed by its SHA-256), even if it's used several times. Pictures nothing uses any more are cleaned out when the board is opened. Photos longer than 3000 px are scaled down; SVGs are converted to ordinary pictures. pdf.js loads only when a PDF arrives, and its font and decoder files are copied into `public/pdfjs/` at install time.
 
+### Print to Chalkd
+
+A "Chalkd" printer (CUPS) lets any app print straight onto a board. Each printout becomes a **new board, named after the document, in the notebook of the open board**, and Chalkd switches to it; the pages are placed like an imported PDF. Jobs printed while Chalkd is closed open the next time it starts.
+
+- `scripts/printer/chalkd-backend` is the CUPS backend. It's installed root-owned with mode 0700, so CUPS runs it as root, and it writes each job into the printing user's `~/.local/share/chalkd/printed/` *as that user* (`<time>-<job>.pdf` plus a `.title` file, renamed into place last, mode 0600).
+- `scripts/printer/chalkd.ppd` has no driver: CUPS converts what's printed to PDF and hands it straight over.
+- The app watches that folder, takes one job at a time, and deletes it once its board exists. The main process remembers which board each job became, so a window reload partway through can't make a second board.
+- Setup needs admin rights once: `npm run printer:install` (and `printer:uninstall`). Packaging will do this at install time.
+
 ## Export
 
 The Export button (also in the drawer menu) opens a dialog:

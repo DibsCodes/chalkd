@@ -71,6 +71,38 @@
     } catch (err) {
       showToast(`Couldn't open your board: ${errorMessage(err)}`);
     }
+    // Anything printed while Chalkd was closed, then whatever comes later.
+    window.chalkd.print.onWaiting(() => void receivePrints());
+    await receivePrints();
+  }
+
+  let receiving = false;
+  let printArrived = false;
+
+  /** Turn each job from the Chalkd printer into a board, one at a time. */
+  async function receivePrints() {
+    printArrived = true;
+    if (receiving) return;
+    receiving = true;
+    try {
+      while (printArrived) {
+        printArrived = false;
+        for (let job = await window.chalkd.print.take(); job; job = await window.chalkd.print.take()) {
+          // Let a picture or PDF that's still importing finish first.
+          while (board.importing) await new Promise((r) => setTimeout(r, 200));
+          drawerOpen = false;
+          settingsOpen = false;
+          popover = null;
+          try {
+            await board.receivePrint(job);
+          } finally {
+            await window.chalkd.print.done(job.id);
+          }
+        }
+      }
+    } finally {
+      receiving = false;
+    }
   }
 
   // Rebuild the active tool whenever its settings change.

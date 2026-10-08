@@ -1,5 +1,7 @@
 import { BrowserWindow } from 'electron';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 /**
@@ -11,6 +13,7 @@ import path from 'node:path';
 export async function runSelfTest(
   win: BrowserWindow,
   outDir: string,
+  printInbox: string,
 ): Promise<void> {
   mkdirSync(outDir, { recursive: true });
   const wc = win.webContents;
@@ -147,6 +150,40 @@ export async function runSelfTest(
   await pause(1000);
   if (process.env.CHALKD_SELFTEST_MODE === 'view') {
     await shot('reopened');
+    return;
+  }
+  if (process.env.CHALKD_SELFTEST_MODE === 'print') {
+    // Print through the real backend script, as CUPS would run it (but as
+    // this user, into the sandbox inbox).
+    const pdf = path.join(outDir, 'worksheet.pdf');
+    writeFileSync(pdf, await makeWorksheetPdf());
+    const print = (job: number, title: string) =>
+      execFileSync(
+        'sh',
+        [
+          path.join(process.cwd(), 'scripts/printer/chalkd-backend'),
+          String(job),
+          os.userInfo().username,
+          title,
+          '1',
+          '',
+          pdf,
+        ],
+        { env: { ...process.env, CHALKD_PRINT_INBOX: printInbox } },
+      );
+    await shot('p0-before');
+    print(7, 'Fractions worksheet.pdf');
+    await pause(2500);
+    await shot('p1-printed');
+    // A second job while the drawer is open: the drawer gets out of the way.
+    await tap('[aria-label="Notebooks"]');
+    await pause(400);
+    print(8, '(stdin)');
+    await pause(2500);
+    await shot('p2-second');
+    await tap('[aria-label="Notebooks"]');
+    await pause(400);
+    await shot('p3-drawer');
     return;
   }
   if (process.env.CHALKD_SELFTEST_MODE === 'import') {

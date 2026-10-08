@@ -1,0 +1,74 @@
+#!/bin/sh
+# CUPS backend for the "Chalkd" printer: each print job is handed to the
+# printing user's Chalkd, which opens it as a new board.
+#
+# Installed as <cups serverbin>/backend/chalkd, owned by root with mode 0700,
+# so CUPS runs it as root. It writes the job into the user's inbox *as that
+# user*, so it never creates root-owned files in a home folder.
+#
+# Inbox: ~/.local/share/chalkd/printed/<time>-<job>.pdf (+ .title). The PDF is
+# renamed into place last; Chalkd only reads finished .pdf files.
+
+# CUPS backend exit codes.
+OK=0
+FAILED=1
+CANCEL=5
+
+if [ $# -eq 0 ]; then
+  # Device discovery (lpinfo -v).
+  echo 'direct chalkd:/ "Chalkd" "Chalkd whiteboard"'
+  exit $OK
+fi
+if [ $# -lt 5 ] || [ $# -gt 6 ]; then
+  echo "Usage: chalkd job-id user title copies options [file]" >&2
+  exit $FAILED
+fi
+
+job=$1
+user=$2
+title=$3
+file=${6:-/dev/stdin}
+
+case $job in
+  '' | *[!0-9]*) echo "ERROR: bad job id" >&2; exit $CANCEL ;;
+esac
+
+entry=$(getent passwd "$user") || {
+  echo "ERROR: unknown user $user" >&2
+  exit $CANCEL
+}
+uid=$(echo "$entry" | cut -d: -f3)
+home=$(echo "$entry" | cut -d: -f6)
+if [ "$(id -u)" -eq 0 ] && [ "$uid" -lt 1000 ]; then
+  echo "ERROR: Chalkd only prints for people's accounts" >&2
+  exit $CANCEL
+fi
+
+inbox="$home/.local/share/chalkd/printed"
+# For testing without CUPS: run as yourself with CHALKD_PRINT_INBOX set.
+if [ "$(id -u)" -ne 0 ] && [ -n "${CHALKD_PRINT_INBOX:-}" ]; then
+  inbox=$CHALKD_PRINT_INBOX
+fi
+name="$(date +%s)-$job"
+
+# The job file is opened here (as root, since CUPS spool files aren't
+# readable by the user) and handed over as stdin.
+write='
+  set -e
+  umask 077
+  mkdir -p "$1"
+  cat > "$1/$2.part"
+  printf "%s" "$3" > "$1/$2.title"
+  mv -f "$1/$2.part" "$1/$2.pdf"
+'
+if [ "$(id -u)" -eq 0 ]; then
+  runuser -u "$user" -- sh -c "$write" chalkd "$inbox" "$name" "$title" < "$file"
+else
+  sh -c "$write" chalkd "$inbox" "$name" "$title" < "$file"
+fi || {
+  echo "ERROR: couldn't write to $inbox" >&2
+  exit $FAILED
+}
+
+echo "INFO: Sent to Chalkd" >&2
+exit $OK

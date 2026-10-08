@@ -8,6 +8,8 @@ import { Library } from './library';
 import { registerExportIpc } from './export-ipc';
 import { registerImportIpc } from './import-ipc';
 import { registerLibraryIpc } from './library-ipc';
+import { PrintInbox } from './print-inbox';
+import { registerPrintIpc } from './print-ipc';
 import { runSelfTest } from './selftest';
 import { SettingsStore } from './settings';
 
@@ -56,7 +58,7 @@ const createWindow = () => {
     win.show();
     const selfTestDir = process.env.CHALKD_SELFTEST;
     if (selfTestDir) {
-      runSelfTest(win, selfTestDir).finally(() => app.quit());
+      runSelfTest(win, selfTestDir, printInbox.dir).finally(() => app.quit());
     }
   });
 
@@ -150,6 +152,19 @@ registerLibraryIpc(
 );
 registerImportIpc();
 registerExportIpc(() => library, settings);
+
+// Where the Chalkd printer leaves jobs (see scripts/printer/chalkd-backend).
+const printInbox = new PrintInbox(
+  process.env.CHALKD_PRINT_INBOX ??
+    (sandbox
+      ? path.join(sandbox, 'printed')
+      : path.join(os.homedir(), '.local', 'share', 'chalkd', 'printed')),
+);
+registerPrintIpc(
+  () => library,
+  () => session,
+  printInbox,
+);
 
 ipcMain.handle('board:write', (_event, changes: BoardChanges) => {
   session.write(changes);

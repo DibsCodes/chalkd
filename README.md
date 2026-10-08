@@ -24,6 +24,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
   - Drag the selection to move it; drag a corner to resize it.
   - **Delete** sits above the selection (or press Delete).
 - **Import (picture icon):** pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs from a file. PDF pages are placed top to bottom, ready to write on. You can also paste a picture (Ctrl+V) or drag files onto the board. Pictures sit underneath ink and highlighter.
+- **Print to Chalkd:** after a one-time `npm run printer:install` (asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. Anything printed while Chalkd is closed opens the next time you start it. `npm run printer:uninstall` removes the printer.
 - **Export (share icon, or Export… on a board in the drawer):**
   - PDF as one page sized to fit everything, or as printable Letter/A4 pages at real size. The orientation is chosen to use fewer pages.
   - PNG of the whole board or of what's on screen, at 2×.
@@ -44,6 +45,8 @@ npm run spike      # Phase 0 input spike: logs every touch to the terminal
 npm test           # unit tests
 npm run check      # type-check TypeScript and Svelte
 npm run bench      # rendering benchmark, prints timings and quits
+npm run printer:install    # add the Chalkd printer (needs sudo)
+npm run printer:uninstall  # remove it
 ```
 
 At a desk: the mouse draws, the middle button or scroll wheel pans, and Ctrl+scroll or a touchpad pinch zooms.

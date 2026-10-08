@@ -5,6 +5,7 @@ import type {
   BoardData,
   ImportFile,
   LibraryState,
+  PrintJob,
 } from '../shared/types';
 
 const api = {
@@ -53,6 +54,21 @@ const api = {
       ipcRenderer.invoke('export:png', name, bytes),
     pdf: (name: string, html: string): Promise<string | null> =>
       ipcRenderer.invoke('export:pdf', name, html),
+  },
+  print: {
+    /** The oldest job from the Chalkd printer, or null. */
+    take: (): Promise<PrintJob | null> => ipcRenderer.invoke('print:take'),
+    /** Open the board for a printout (made next to the open one the first time). */
+    openBoard: (
+      id: string,
+      title: string,
+    ): Promise<{ board: BoardData; imported: boolean }> =>
+      ipcRenderer.invoke('print:open-board', id, title),
+    done: (id: string): Promise<void> => ipcRenderer.invoke('print:done', id),
+    /** Called when a new job may have arrived. */
+    onWaiting: (fn: () => void): void => {
+      ipcRenderer.on('print:waiting', () => fn());
+    },
   },
   board: {
     /** Read a board without opening it for editing. */

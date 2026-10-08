@@ -110,6 +110,15 @@ export interface ImportFile {
   bytes: Uint8Array;
 }
 
+/** A document printed to the Chalkd printer, waiting to become a board. */
+export interface PrintJob {
+  id: string;
+  /** The title the printing app gave the job (often a file or page name). */
+  title: string;
+  /** The pages, as a PDF. */
+  bytes: Uint8Array;
+}
+
 // ---------- library ----------
 
 export interface TreeNode {
