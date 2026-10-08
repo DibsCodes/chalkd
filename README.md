@@ -37,7 +37,7 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
   - Drag the selection to move it; drag a corner to resize it.
   - **Delete** sits above the selection (or press Delete).
 - **Import (picture icon):** pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs from a file. PDF pages are placed top to bottom, ready to write on. You can also paste a picture (Ctrl+V) or drag files onto the board. Pictures sit underneath ink and highlighter.
-- **Print to Chalkd:** once the printer is added (the package does it; from source, run `npm run printer:install`, which asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. Anything printed while Chalkd is closed opens the next time you start it. From source, `npm run printer:uninstall` removes the printer; uninstalling the package does it for you.
+- **Print to Chalkd:** once the printer is added (the package does it; from source, run `npm run printer:install`, which asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. If Chalkd is closed, printing opens it (with the installed package; from source, a printout waits until you next start Chalkd). From source, `npm run printer:uninstall` removes the printer; uninstalling the package does it for you.
 - **Export (share icon, or Export… on a board in the drawer):**
   - PDF as one page sized to fit everything, or as printable Letter/A4 pages at real size. The orientation is chosen to use fewer pages.
   - PNG of the whole board or of what's on screen, at 2×.

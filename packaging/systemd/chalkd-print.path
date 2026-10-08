@@ -1,0 +1,12 @@
+[Unit]
+Description=Open Chalkd when something is printed to it
+
+[Path]
+# Fires when something changes in the printer's inbox, not merely because a
+# job is sitting there, so an unread job can't make Chalkd relaunch in a loop.
+PathChanged=%h/.local/share/chalkd/printed
+MakeDirectory=yes
+DirectoryMode=0700
+
+[Install]
+WantedBy=default.target

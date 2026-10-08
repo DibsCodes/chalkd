@@ -1,4 +1,5 @@
-# Adds the "Chalkd" printer: anything printed to it opens as a new board.
+# Adds the "Chalkd" printer (anything printed to it opens as a new board)
+# and the watcher that opens Chalkd when a printout arrives.
 
 add_printer() {
   if ! command -v lpadmin >/dev/null 2>&1; then
@@ -16,14 +17,31 @@ add_printer() {
     echo ':: Added the Chalkd printer. Print to it from any app to open the pages as a board.'
 }
 
+# Runs `systemctl --user <args>` for everyone logged in right now.
+each_user() {
+  for user in $(loginctl list-users --no-legend 2>/dev/null | awk '{print $2}'); do
+    systemctl --user -M "$user@" "$@" >/dev/null 2>&1 || true
+  done
+}
+
+enable_watcher() {
+  systemctl --global enable chalkd-print.path >/dev/null 2>&1 || true
+  each_user daemon-reload
+  each_user start chalkd-print.path
+}
+
 post_install() {
   add_printer
+  enable_watcher
 }
 
 post_upgrade() {
   add_printer
+  enable_watcher
 }
 
 pre_remove() {
+  each_user stop chalkd-print.path chalkd-print.service
+  systemctl --global disable chalkd-print.path >/dev/null 2>&1 || true
   lpadmin -x Chalkd 2>/dev/null || true
 }

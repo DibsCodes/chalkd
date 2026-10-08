@@ -1,0 +1,15 @@
+[Unit]
+Description=Chalkd, opened by a print job
+# Only chalkd-print.path starts this, once per inbox change; a running
+# Chalkd hands the launch off to its own window (single instance).
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+# Skip the launch until a job is finished: the printer renames the .pdf
+# into place last.
+ExecCondition=/bin/sh -c 'set -- "%h"/.local/share/chalkd/printed/*.pdf; [ -e "$1" ]'
+ExecStart=/usr/bin/chalkd
+# Signal only Chalkd itself on stop (logout, shutdown) and let it close its
+# helper processes; Electron crashes if they're all killed at once.
+KillMode=mixed

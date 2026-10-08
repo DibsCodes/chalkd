@@ -27,6 +27,11 @@ const configDir = sandbox
   : path.join(app.getPath('appData'), 'chalkd');
 app.setPath('userData', configDir);
 
+// One Chalkd per profile: a second launch (from the app launcher, or the
+// print watcher in packaging/systemd) brings the open window forward and
+// quits. The lock lives in userData, so sandboxed runs don't collide.
+if (!app.requestSingleInstanceLock()) app.exit(0);
+
 const settings = new SettingsStore(configDir);
 const defaultRoot = sandbox
   ? path.join(sandbox, 'library')
@@ -181,6 +186,14 @@ ipcMain.on('board:write-sync', (event, changes: BoardChanges) => {
 });
 
 app.whenReady().then(createWindow);
+
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
 
 app.on('will-quit', () => session.close());
 
