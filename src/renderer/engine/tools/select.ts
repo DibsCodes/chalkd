@@ -1,7 +1,7 @@
 import type { Bounds } from '../../../shared/types';
 import type { Point } from '../camera';
 import { drawItem } from '../draw';
-import { distSqToSegment } from '../geometry';
+import { distSqToSegment, mostlyInside, pointInPolygon } from '../geometry';
 import {
   applyTransform,
   boundsOf,
@@ -224,23 +224,7 @@ export class SelectTool implements Tool {
         return pointInPolygon(item.x + item.w / 2, item.y + item.h / 2, pts);
       }
       // A stroke counts when at least half of it is inside the loop.
-      const p = item.points;
-      const n = p.length / 2;
-      const step = Math.max(1, Math.floor(n / 40));
-      let total = 0;
-      let hits = 0;
-      for (let i = 0; i < n; i += step) {
-        total++;
-        if (
-          pointInPolygon(
-            p[i * 2] + item.origin.x,
-            p[i * 2 + 1] + item.origin.y,
-            pts,
-          )
-        )
-          hits++;
-      }
-      return hits * 2 >= total;
+      return mostlyInside(item.points, item.origin, pts);
     });
     this.setSelection(chosen);
   }
@@ -394,19 +378,4 @@ function polylineBounds(pts: number[]): Bounds {
     maxY = Math.max(maxY, pts[i + 1]);
   }
   return { minX, minY, maxX, maxY };
-}
-
-/** Even-odd ray test against a closed polygon of flat x,y pairs. */
-export function pointInPolygon(x: number, y: number, poly: number[]): boolean {
-  let inPoly = false;
-  const n = poly.length / 2;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = poly[i * 2];
-    const yi = poly[i * 2 + 1];
-    const xj = poly[j * 2];
-    const yj = poly[j * 2 + 1];
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
-      inPoly = !inPoly;
-  }
-  return inPoly;
 }

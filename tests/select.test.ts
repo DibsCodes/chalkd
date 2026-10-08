@@ -11,10 +11,8 @@ import {
 } from '../src/renderer/engine/items';
 import type { Renderer } from '../src/renderer/engine/renderer';
 import { Scene } from '../src/renderer/engine/scene';
-import {
-  pointInPolygon,
-  SelectTool,
-} from '../src/renderer/engine/tools/select';
+import { pointInPolygon } from '../src/renderer/engine/geometry';
+import { SelectTool } from '../src/renderer/engine/tools/select';
 
 const pen = { kind: 'pen' as const, color: '#000', width: 4, opacity: 1 };
 

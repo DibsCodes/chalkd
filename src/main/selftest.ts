@@ -341,6 +341,15 @@ export async function runSelfTest(
   await shot('2-undo-erase');
   await key('z', ['control', 'shift']);
 
+  // Eraser loop around the end of the wave, then a tap inside it.
+  const loop: [number, number][] = [];
+  for (let a = 0; a <= 2.1 * Math.PI; a += 0.1)
+    loop.push([cx + 300 + Math.cos(a) * 90, cy + Math.sin(a) * 90]);
+  await drag(loop);
+  await shot('2b-eraser-loop');
+  await drag([[cx + 300, cy + 60]]);
+  await shot('2c-eraser-loop-erased');
+
   // Pen editor: tap a pen, tap it again to edit.
   await tap('[data-preset="pen-blue"]');
   await tap('[data-preset="pen-blue"]');

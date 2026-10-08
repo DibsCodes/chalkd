@@ -10,7 +10,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
 
 - **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
 - **Highlighter:** sits underneath pen ink, so it never dulls your writing.
-- **Eraser:** rubs out just what you touch, or whole strokes. Long-press it for size and Clear Board, which can be undone.
+- **Eraser:** rubs out just what you touch, or whole strokes. Circle some ink and tap inside the circle to erase everything in it. Long-press it for size and Clear Board, which can be undone.
 - **Undo/redo:** toolbar buttons, a two-finger tap (undo), or a three-finger tap (redo).
 - **Settings (⚙):**
   - board background color and pattern, and making that the default for new boards

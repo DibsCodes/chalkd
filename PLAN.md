@@ -59,6 +59,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 - Partial (default): removes only what the finger passes over, splitting strokes where needed.
 - Whole-stroke: touching any part of a stroke removes all of it.
 - Long-press: switch mode, change size, Clear Board (with confirmation; undoable).
+- Loop erase: drawing a closed loop around ink outlines it in red; a tap inside the loop then erases every stroke it encloses (one undo step). Ink the loop crosses is cut where it crosses, so only the inside goes. Touching outside, dragging, switching tools, or waiting 6 seconds dismisses the loop.
 - Erases ink and highlighter only. Images are removed with Select.
 
 **Select**

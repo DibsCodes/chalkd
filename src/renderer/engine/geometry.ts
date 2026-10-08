@@ -180,3 +180,96 @@ export function polylineHits(
   }
   return false;
 }
+
+/** Even-odd ray test against a closed polygon of flat x,y pairs. */
+export function pointInPolygon(x: number, y: number, poly: number[]): boolean {
+  let inPoly = false;
+  const n = poly.length / 2;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = poly[i * 2];
+    const yi = poly[i * 2 + 1];
+    const xj = poly[j * 2];
+    const yj = poly[j * 2 + 1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inPoly = !inPoly;
+  }
+  return inPoly;
+}
+
+/**
+ * Whether at least half of a polyline (flat x,y pairs relative to `origin`)
+ * lies inside a closed polygon in world space.
+ */
+export function mostlyInside(
+  points: ArrayLike<number>,
+  origin: Point,
+  poly: number[],
+): boolean {
+  const n = points.length / 2;
+  const step = Math.max(1, Math.floor(n / 40));
+  let total = 0;
+  let hits = 0;
+  for (let i = 0; i < n; i += step) {
+    total++;
+    if (
+      pointInPolygon(
+        points[i * 2] + origin.x,
+        points[i * 2 + 1] + origin.y,
+        poly,
+      )
+    )
+      hits++;
+  }
+  return hits * 2 >= total;
+}
+
+/**
+ * The biggest closed loop in a path: the longest stretch whose two ends come
+ * within `close` of each other, and that is at least `minSize` across in both
+ * directions. Fingers rarely close a circle exactly, and often overshoot,
+ * so this finds the loop wherever it starts and ends. Returns its points,
+ * or null.
+ */
+export function findLoop(
+  path: number[],
+  close: number,
+  minSize: number,
+): number[] | null {
+  // Long paths are thinned out; the loop's shape doesn't need every sample.
+  const stride = Math.max(1, Math.ceil(path.length / 2 / 400));
+  const pts: number[] = [];
+  for (let i = 0; i < path.length; i += stride * 2)
+    pts.push(path[i], path[i + 1]);
+  const n = pts.length / 2;
+  const close2 = close * close;
+
+  let bestI = -1;
+  let bestJ = -1;
+  for (let i = 0; i < n; i++) {
+    // Nothing left can beat the best loop so far.
+    if (n - 1 - i <= bestJ - bestI) break;
+    for (let j = n - 1; j - i > bestJ - bestI; j--) {
+      const dx = pts[j * 2] - pts[i * 2];
+      const dy = pts[j * 2 + 1] - pts[i * 2 + 1];
+      if (dx * dx + dy * dy > close2) continue;
+      const loop = pts.slice(i * 2, j * 2 + 2);
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (let k = 0; k < loop.length; k += 2) {
+        minX = Math.min(minX, loop[k]);
+        maxX = Math.max(maxX, loop[k]);
+        minY = Math.min(minY, loop[k + 1]);
+        maxY = Math.max(maxY, loop[k + 1]);
+      }
+      // Shorter stretches from here are inside this one, so no bigger.
+      if (maxX - minX >= minSize && maxY - minY >= minSize) {
+        bestI = i;
+        bestJ = j;
+      }
+      break;
+    }
+  }
+  return bestI < 0 ? null : pts.slice(bestI * 2, bestJ * 2 + 2);
+}
