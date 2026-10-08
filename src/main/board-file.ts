@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
   DEFAULT_BACKGROUND,
+  type Background,
   type BoardChanges,
   type BoardMeta,
   type Item,
@@ -64,8 +65,14 @@ export class BoardFile {
     private db: DatabaseSync,
   ) {}
 
-  /** Open a board, creating an empty one if the file doesn't exist. */
-  static open(path: string): BoardFile {
+  /**
+   * Open a board, creating an empty one if the file doesn't exist.
+   * `background` applies only to a newly created board.
+   */
+  static open(
+    path: string,
+    background: Background = DEFAULT_BACKGROUND,
+  ): BoardFile {
     const db = new DatabaseSync(path);
     try {
       db.exec('PRAGMA journal_mode = DELETE; PRAGMA synchronous = FULL;');
@@ -77,7 +84,7 @@ export class BoardFile {
         db.exec(SCHEMA);
         db.exec(`PRAGMA application_id = ${APPLICATION_ID}`);
         db.exec(`PRAGMA user_version = ${FORMAT_VERSION}`);
-        writeMeta(db, { background: DEFAULT_BACKGROUND, camera: null });
+        writeMeta(db, { background, camera: null });
         db.exec('COMMIT');
       } else if (appId !== APPLICATION_ID) {
         throw new BoardFileError(`${path} is not a Chalkd board`);

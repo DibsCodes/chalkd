@@ -74,7 +74,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
   - `Stroke { id, kind: pen | highlighter, color, width, opacity, origin, points }`
   - `Image { id, assetHash, x, y, w, h }`
   - Bounding boxes live in an `rbush` R-tree, used for culling, erasing, and lasso hit-tests.
-- **Stroke shape.** `perfect-freehand` with thinning 0 (uniform width) plus streamline smoothing. Each outline is cached as a `Path2D`.
+- **Stroke shape.** Points are smoothed once as they're drawn (exponential smoothing; strength set in Settings), then stored. Drawing is a round-capped line through the stored points, cached as a `Path2D`. Because smoothing is already applied to the stored points, a stroke cut in two by the eraser keeps its exact shape. (`perfect-freehand` was tried first and dropped: on every redraw it trims the start of each stroke, which made erased gaps grow.)
 - **Layers:** stacked canvases, aware of `devicePixelRatio`:
   1. Background pattern (blank / grid / lines / dots). Drawn in world space so it lines up with writing; fades out when zoomed far out.
   2. Finished items, in the order images → highlighters → pen ink. Only items in view are drawn, using an R-tree query.
@@ -167,7 +167,7 @@ Each phase ends with something to try on the touch monitor.
    - pinch is smooth
    - Hyprland doesn't take over the gestures
    - we know whether the monitor reports contact size
-1. **Canvas core.** Camera, strokes with perfect-freehand, R-tree culling, layered rendering, second-finger cancel, undo/redo with tap gestures, zoom pill. Everything stays in memory.
+1. **Canvas core.** Camera, smoothed strokes, R-tree culling, layered rendering, second-finger cancel, undo/redo with tap gestures, zoom pill. Everything stays in memory.
 2. **Persistence.** The `.chalkd` format, autosave, creating the root folder on first run, reopening the last board.
 3. **Toolbar and tools.** Pen and highlighter presets with their editor, eraser (both modes, size, clear), settings panel, backgrounds. → **Usable in class on a single board.**
 4. **Drawer.** The tree, `.order.json`, create / rename / delete, long-press menu, drag to reorder or move, Move to….

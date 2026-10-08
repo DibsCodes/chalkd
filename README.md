@@ -6,13 +6,19 @@ See [PLAN.md](PLAN.md) for the design and build phases.
 
 ## Status
 
-**Phase 2: saving.** Boards autosave to `~/Documents/Chalkd` (one `.chalkd` file per board), and the last board reopens on launch. There's no way to switch boards yet; that's Phase 4.
+**Phase 3: toolbar and tools. Usable in class on a single board.**
 
-On the board:
-- one finger draws smooth, uniform-width ink
-- two fingers pan and pinch-zoom (10%–800%)
-- a two-finger tap undoes; a three-finger tap redoes
-- the zoom pill in the bottom-right offers 100% and Fit content
+- **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
+- **Highlighter:** sits underneath pen ink, so it never dulls your writing.
+- **Eraser:** rubs out just what you touch, or whole strokes. Long-press it for size and Clear Board, which can be undone.
+- **Undo/redo:** toolbar buttons, a two-finger tap (undo), or a three-finger tap (redo).
+- **Settings (⚙):**
+  - board background color and pattern, and making that the default for new boards
+  - ink smoothing
+  - tap gestures and palm rejection
+  - light/dark theme
+  - the Chalkd folder location
+- **Saving:** boards autosave to `~/Documents/Chalkd` and the last board reopens on launch. Switching boards arrives with the drawer in Phase 4.
 
 ## Running
 
@@ -22,6 +28,7 @@ npm start          # the app (native Wayland)
 npm run start:x11  # fallback through XWayland
 npm run spike      # Phase 0 input spike: logs every touch to the terminal
 npm test           # unit tests
+npm run check      # type-check TypeScript and Svelte
 npm run bench      # rendering benchmark, prints timings and quits
 ```
 

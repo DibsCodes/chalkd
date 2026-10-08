@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
 import { mkdtempSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { BoardChanges } from '../shared/types';
+import type { AppSettings, BoardChanges } from '../shared/types';
 import { BoardSession } from './board-session';
 import { Library } from './library';
 import { runSelfTest } from './selftest';
@@ -23,13 +23,17 @@ const configDir = sandbox
 app.setPath('userData', configDir);
 
 const settings = new SettingsStore(configDir);
-const library = new Library(
-  settings.get('rootDir') ??
-    (sandbox
-      ? path.join(sandbox, 'library')
-      : path.join(app.getPath('documents'), 'Chalkd')),
-);
-const session = new BoardSession(library, settings);
+const defaultRoot = sandbox
+  ? path.join(sandbox, 'library')
+  : path.join(app.getPath('documents'), 'Chalkd');
+
+function makeLibrary(): Library {
+  return new Library(settings.get('rootDir') ?? defaultRoot, () =>
+    settings.get('defaultBackground'),
+  );
+}
+let library = makeLibrary();
+let session = new BoardSession(library, settings);
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -97,6 +101,38 @@ ipcMain.on('dev:log', (_event, entry: unknown) => {
   ) {
     app.quit();
   }
+});
+
+ipcMain.handle('settings:get', () => settings.all());
+
+ipcMain.handle('settings:update', (_event, patch: Partial<AppSettings>) => {
+  // The library location changes only through library:set-root.
+  const { rootDir: _r, lastBoard: _l, ...rest } = patch;
+  settings.update(rest);
+});
+
+ipcMain.handle('library:root', () => library.root);
+
+ipcMain.handle('library:choose-folder', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)!;
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Choose where Chalkd keeps your notebooks',
+    defaultPath: library.root,
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  return result.canceled ? null : (result.filePaths[0] ?? null);
+});
+
+/** Switch to another library folder and open a board from it. */
+ipcMain.handle('library:set-root', (_event, dir: string) => {
+  session.close();
+  settings.update({
+    rootDir: dir === defaultRoot ? null : dir,
+    lastBoard: null,
+  });
+  library = makeLibrary();
+  session = new BoardSession(library, settings);
+  return session.openInitial();
 });
 
 ipcMain.handle('board:open-initial', () => session.openInitial());

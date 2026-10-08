@@ -39,6 +39,10 @@ export class Autosave {
         this.meta.camera = editor.camera.state;
         this.schedule(CAMERA_SAVE_DELAY_MS);
       }),
+      editor.onBackgroundChange((bg) => {
+        this.meta.background = bg;
+        this.schedule(SAVE_DELAY_MS);
+      }),
     ];
   }
 

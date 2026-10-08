@@ -77,6 +77,8 @@ export class InputRouter {
   private panPointer: { id: number; x: number; y: number } | null = null;
   private wheelTimer: ReturnType<typeof setTimeout> | null = null;
   private detach: (() => void) | null = null;
+  /** Top-left of the board element in the window; pointer coords are relative to it. */
+  private offset = { x: 0, y: 0 };
 
   constructor(
     private target: InputTarget,
@@ -85,7 +87,12 @@ export class InputRouter {
   ) {}
 
   attach(el: HTMLElement): void {
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      this.offset = { x: r.left, y: r.top };
+    };
     const down = (e: PointerEvent) => {
+      if (!this.busy) measure();
       el.setPointerCapture(e.pointerId);
       this.pointerDown(e);
     };
@@ -94,6 +101,7 @@ export class InputRouter {
     const cancel = (e: PointerEvent) => this.pointerUp(e, true);
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
+      measure();
       this.wheel(e);
     };
     el.addEventListener('pointerdown', down);
@@ -166,11 +174,13 @@ export class InputRouter {
     if (this.wheelTimer) clearTimeout(this.wheelTimer);
     else this.target.gestureStart();
     const cam = this.target.camera;
+    const sx = e.clientX - this.offset.x;
+    const sy = e.clientY - this.offset.y;
     if (e.ctrlKey) {
       // Ctrl+wheel is also what a touchpad pinch produces: many small deltas
       // instead of a few big mouse-wheel notches, so it needs more gain.
       const gain = Math.abs(e.deltaY) >= 50 ? 0.002 : 0.01;
-      cam.zoomAt(e.clientX, e.clientY, cam.zoom * Math.exp(-e.deltaY * gain));
+      cam.zoomAt(sx, sy, cam.zoom * Math.exp(-e.deltaY * gain));
     } else {
       cam.panBy(-e.deltaX, -e.deltaY);
     }
@@ -204,12 +214,9 @@ export class InputRouter {
     }
     if (!this.seq && (this.toolPointer !== null || this.panPointer)) return;
 
-    this.touches.set(e.pointerId, {
-      startX: e.clientX,
-      startY: e.clientY,
-      x: e.clientX,
-      y: e.clientY,
-    });
+    const x = e.clientX - this.offset.x;
+    const y = e.clientY - this.offset.y;
+    this.touches.set(e.pointerId, { startX: x, startY: y, x, y });
 
     const seq = this.seq;
     if (!seq) {
@@ -251,8 +258,8 @@ export class InputRouter {
     const t = this.touches.get(e.pointerId);
     const seq = this.seq;
     if (!t || !seq) return;
-    t.x = e.clientX;
-    t.y = e.clientY;
+    t.x = e.clientX - this.offset.x;
+    t.y = e.clientY - this.offset.y;
     seq.maxTravel = Math.max(seq.maxTravel, this.travel(e.pointerId));
 
     if (seq.mode === 'draw') {
@@ -352,7 +359,10 @@ export class InputRouter {
   }
 
   private world(e: PointerLike): Point {
-    return this.target.camera.toWorld(e.clientX, e.clientY);
+    return this.target.camera.toWorld(
+      e.clientX - this.offset.x,
+      e.clientY - this.offset.y,
+    );
   }
 
   private worldSamples(e: PointerLike): Point[] {

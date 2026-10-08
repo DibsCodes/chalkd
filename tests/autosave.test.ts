@@ -28,6 +28,9 @@ function fakeEditor() {
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
+    onBackgroundChange() {
+      return () => {};
+    },
     moveCamera(x: number) {
       camera.x = x;
       for (const fn of listeners) fn();

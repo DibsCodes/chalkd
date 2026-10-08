@@ -6,6 +6,7 @@ import {
   statSync,
 } from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_BACKGROUND, type Background } from '../shared/types';
 import { BoardFile } from './board-file';
 import { writeFileAtomic } from './fs-util';
 
@@ -19,7 +20,11 @@ export const FIRST_NOTEBOOK = 'My Notebook';
  * display order (PLAN.md › Storage).
  */
 export class Library {
-  constructor(readonly root: string) {}
+  constructor(
+    readonly root: string,
+    /** Background for newly created boards. */
+    private newBoardBackground: () => Background = () => DEFAULT_BACKGROUND,
+  ) {}
 
   /** Make sure the library exists and holds at least one board. */
   ensure(now = new Date()): void {
@@ -105,7 +110,10 @@ export class Library {
   ): string {
     const base = this.uniqueName(notebook, sanitize(name), BOARD_EXT);
     const file = base + BOARD_EXT;
-    BoardFile.open(this.abs(path.join(notebook, file))).close();
+    BoardFile.open(
+      this.abs(path.join(notebook, file)),
+      this.newBoardBackground(),
+    ).close();
     this.appendToOrder(notebook, file);
     return path.join(notebook, file);
   }

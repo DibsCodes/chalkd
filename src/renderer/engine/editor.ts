@@ -1,7 +1,7 @@
 import { Camera, clampZoom, type Point } from './camera';
 import { History } from './history';
 import { InputRouter, type InputOptions, type InputTarget } from './input';
-import type { BoardMeta, Item } from '../../shared/types';
+import type { Background, BoardMeta, Item } from '../../shared/types';
 import type { StrokeStyle } from './items';
 import { Renderer } from './renderer';
 import { Scene } from './scene';
@@ -11,7 +11,7 @@ import type { Tool } from './tools/tool';
 export const DEFAULT_PEN: StrokeStyle = {
   kind: 'pen',
   color: '#1d2433',
-  width: 3,
+  width: 4,
   opacity: 1,
 };
 
@@ -33,6 +33,7 @@ export class Editor implements InputTarget {
   tool: Tool;
 
   private cameraListeners = new Set<() => void>();
+  private backgroundListeners = new Set<(bg: Background) => void>();
   private animation: number | null = null;
 
   constructor(container: HTMLElement, options: Partial<InputOptions> = {}) {
@@ -43,7 +44,7 @@ export class Editor implements InputTarget {
       ...options,
     });
     this.input.attach(container);
-    this.tool = new PenTool(this, DEFAULT_PEN);
+    this.tool = new PenTool(this, DEFAULT_PEN, 0.5);
     this.centerOn({ x: 0, y: 0 }, 1);
   }
 
@@ -66,6 +67,32 @@ export class Editor implements InputTarget {
     } else {
       this.centerOn({ x: 0, y: 0 }, 1);
     }
+  }
+
+  /** Switch tools between interactions (an open stroke is abandoned). */
+  setTool(tool: Tool): void {
+    this.tool.cancel();
+    this.tool = tool;
+  }
+
+  get background(): Background {
+    return this.renderer.background;
+  }
+
+  setBackground(bg: Background): void {
+    this.renderer.background = bg;
+    for (const fn of this.backgroundListeners) fn(bg);
+  }
+
+  onBackgroundChange(fn: (bg: Background) => void): () => void {
+    this.backgroundListeners.add(fn);
+    return () => this.backgroundListeners.delete(fn);
+  }
+
+  /** Remove everything as one undoable step. */
+  clearBoard(): void {
+    if (this.input.busy) return;
+    this.history.commit({ added: [], removed: this.scene.all() });
   }
 
   // ---------- InputTarget ----------

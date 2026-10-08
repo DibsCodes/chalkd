@@ -77,3 +77,69 @@ export interface BoardChanges {
   deletes: string[];
   meta?: Partial<BoardMeta>;
 }
+
+// ---------- settings ----------
+
+/** A pen or highlighter the user has set up in the toolbar. */
+export interface Preset {
+  id: string;
+  color: string;
+  /** Stroke width in board units. */
+  width: number;
+}
+
+export type ActiveTool =
+  | { type: 'pen'; presetId: string }
+  | { type: 'highlighter'; presetId: string }
+  | { type: 'eraser' };
+
+export interface EraserSettings {
+  mode: 'partial' | 'stroke';
+  /** Diameter in screen pixels. */
+  size: number;
+}
+
+export type Theme = 'system' | 'light' | 'dark';
+
+export interface AppSettings {
+  /** Library folder; null means the default (~/Documents/Chalkd). */
+  rootDir: string | null;
+  /** Last open board, relative to the library root. */
+  lastBoard: string | null;
+  pens: Preset[];
+  highlighters: Preset[];
+  tool: ActiveTool;
+  eraser: EraserSettings;
+  defaultBackground: Background;
+  theme: Theme;
+  tapGestures: boolean;
+  /** 0 = raw input, 1 = heavily smoothed. */
+  smoothing: number;
+  /** Ignore touches wider than this many px; null = off. */
+  palmContactPx: number | null;
+}
+
+export const HIGHLIGHTER_OPACITY = 0.4;
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  rootDir: null,
+  lastBoard: null,
+  pens: [
+    { id: 'pen-black', color: '#1d2433', width: 4 },
+    { id: 'pen-blue', color: '#1f5fd1', width: 4 },
+    { id: 'pen-red', color: '#d62f2f', width: 4 },
+    { id: 'pen-green', color: '#1f8a3a', width: 4 },
+  ],
+  highlighters: [
+    { id: 'hl-yellow', color: '#ffd400', width: 20 },
+    { id: 'hl-green', color: '#5fe35f', width: 20 },
+    { id: 'hl-pink', color: '#ff6fb5', width: 20 },
+  ],
+  tool: { type: 'pen', presetId: 'pen-black' },
+  eraser: { mode: 'partial', size: 40 },
+  defaultBackground: DEFAULT_BACKGROUND,
+  theme: 'system',
+  tapGestures: true,
+  smoothing: 0.5,
+  palmContactPx: null,
+};

@@ -27,6 +27,18 @@ export class History {
     this.notify();
   }
 
+  /**
+   * Add a change that was already applied to the scene (e.g. erasing, which
+   * edits the board live as the finger moves) as one undoable step.
+   */
+  record(change: SceneChange): void {
+    if (!change.added.length && !change.removed.length) return;
+    this.undoStack.push(change);
+    if (this.undoStack.length > LIMIT) this.undoStack.shift();
+    this.redoStack.length = 0;
+    this.notify();
+  }
+
   undo(): boolean {
     const change = this.undoStack.pop();
     if (!change) return false;

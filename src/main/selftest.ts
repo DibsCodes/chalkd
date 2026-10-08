@@ -3,8 +3,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * `CHALKD_SELFTEST=<dir> npm start`: drives the real input path with
- * synthetic mouse events and saves screenshots, so rendering can be checked
+ * `CHALKD_SELFTEST=<dir> npm start`: drives the real app with synthetic mouse
+ * and keyboard input and saves screenshots, so behavior can be checked
  * without someone at the screen. Quits when done. With
  * CHALKD_SELFTEST_MODE=view it only screenshots whatever board opens.
  */
@@ -15,10 +15,52 @@ export async function runSelfTest(
   mkdirSync(outDir, { recursive: true });
   const wc = win.webContents;
   const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   const shot = async (name: string) => {
-    await pause(150);
+    await pause(250);
     const image = await wc.capturePage();
     writeFileSync(path.join(outDir, `${name}.png`), image.toPNG());
+  };
+
+  /** Center of the first element matching a CSS selector, or a button with this text. */
+  const center = async (target: string): Promise<[number, number]> => {
+    const r = await wc.executeJavaScript(
+      `(() => {
+        const t = ${JSON.stringify(target)};
+        let el = null;
+        try { el = document.querySelector(t); } catch {}
+        el ??= [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === t);
+        el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        const r = el?.getBoundingClientRect();
+        return r ? [r.left + r.width / 2, r.top + r.height / 2] : null;
+      })()`,
+    );
+    if (!r) throw new Error(`selftest: nothing matches ${target}`);
+    return r;
+  };
+
+  const tap = async (target: string, holdMs = 30) => {
+    const [x, y] = await center(target);
+    wc.sendInputEvent({ type: 'mouseMove', x, y });
+    wc.sendInputEvent({
+      type: 'mouseDown',
+      x,
+      y,
+      button: 'left',
+      clickCount: 1,
+    });
+    await pause(holdMs);
+    wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+    await pause(150);
+  };
+
+  const key = async (
+    keyCode: string,
+    modifiers: ('control' | 'shift')[] = [],
+  ) => {
+    wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+    wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+    await pause(150);
   };
 
   const drag = async (points: [number, number][]) => {
@@ -48,22 +90,23 @@ export async function runSelfTest(
       button: 'left',
       clickCount: 1,
     });
-    await pause(30);
+    await pause(60);
   };
 
-  await pause(800);
+  await pause(1000);
   if (process.env.CHALKD_SELFTEST_MODE === 'view') {
     await shot('reopened');
     return;
   }
+
   const [w, h] = win.getContentSize();
   const cx = w / 2;
-  const cy = h / 2;
+  const cy = h / 2 + 30;
 
-  // A spiral, a wave, and a dot.
+  // Pen: a spiral, a wave, and a dot.
   const spiral: [number, number][] = [];
   for (let t = 0; t < 6 * Math.PI; t += 0.08) {
-    spiral.push([cx - 220 + Math.cos(t) * t * 6, cy + Math.sin(t) * t * 6]);
+    spiral.push([cx - 260 + Math.cos(t) * t * 6, cy + Math.sin(t) * t * 6]);
   }
   await drag(spiral);
   const wave: [number, number][] = [];
@@ -71,29 +114,41 @@ export async function runSelfTest(
     wave.push([cx + x, cy + Math.sin(x / 30) * 40]);
   await drag(wave);
   await drag([[cx + 180, cy + 120]]);
-  await shot('1-drawn');
 
-  // Zoom in 3 notches around the wave.
-  for (let i = 0; i < 3; i++) {
-    wc.sendInputEvent({
-      type: 'mouseWheel',
-      x: cx + 180,
-      y: cy,
-      deltaX: 0,
-      deltaY: 120,
-      wheelTicksY: -1,
-      modifiers: ['control'],
-    } as Electron.MouseWheelInputEvent);
-    await pause(40);
-  }
-  await pause(300);
-  await shot('2-zoomed');
+  // Highlighter across the wave (should sit underneath the ink).
+  await tap('[data-preset="hl-yellow"]');
+  const hl: [number, number][] = [];
+  for (let x = -20; x <= 380; x += 6) hl.push([cx + x, cy + 4]);
+  await drag(hl);
 
-  // Undo the dot, then fit everything.
-  wc.sendInputEvent({ type: 'keyDown', keyCode: 'z', modifiers: ['control'] });
-  wc.sendInputEvent({ type: 'keyUp', keyCode: 'z', modifiers: ['control'] });
-  wc.sendInputEvent({ type: 'keyDown', keyCode: '1', modifiers: ['control'] });
-  wc.sendInputEvent({ type: 'keyUp', keyCode: '1', modifiers: ['control'] });
-  await pause(500);
-  await shot('3-undo-fit');
+  // Partial eraser straight down through the spiral.
+  await tap('[aria-label="Eraser"]');
+  const cut: [number, number][] = [];
+  for (let y = -140; y <= 140; y += 5) cut.push([cx - 260, cy + y]);
+  await drag(cut);
+  await shot('1-pen-highlighter-eraser');
+
+  // Undo the erase, then redo it.
+  await key('z', ['control']);
+  await shot('2-undo-erase');
+  await key('z', ['control', 'shift']);
+
+  // Pen editor: tap a pen, tap it again to edit.
+  await tap('[data-preset="pen-blue"]');
+  await tap('[data-preset="pen-blue"]');
+  await shot('3-pen-editor');
+  await key('Escape');
+
+  // Eraser menu via long-press.
+  await tap('[aria-label="Eraser"]', 700);
+  await shot('4-eraser-menu');
+  await key('Escape');
+
+  // Settings, then a charcoal board with a grid.
+  await tap('[aria-label="Settings"]');
+  await shot('5-settings');
+  await tap('[aria-label="Charcoal"]');
+  await tap('Grid');
+  await key('Escape');
+  await shot('6-charcoal');
 }
