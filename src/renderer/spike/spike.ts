@@ -387,7 +387,7 @@ function endSequence(cancelled: boolean): void {
     extraFingersIgnored: s.extraFingersIgnored,
     zoom: Number(camera.zoom.toFixed(3)),
   };
-  window.chalkd.spike.log(entry);
+  window.chalkd.dev.log(entry);
   lastSeqText = Object.entries(entry)
     .map(([k, v]) => `  ${k}: ${Array.isArray(v) ? v.join(',') : v}`)
     .join('\n');
@@ -452,7 +452,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('resize', resize);
 
-window.chalkd.spike.env().then((env) => {
+window.chalkd.dev.env().then((env) => {
   const displays = env.displays
     .map(
       (d: { size: string; scale: number; touchSupport: string }) =>
@@ -464,7 +464,7 @@ window.chalkd.spike.env().then((env) => {
     `session ${env.sessionType || '?'} · ozone ${env.ozonePlatform} · wayland ${env.waylandDisplay || 'no'}`,
     `displays: ${displays}`,
   ].join('\n');
-  window.chalkd.spike.log({ env });
+  window.chalkd.dev.log({ env });
   dirty = true;
 });
 

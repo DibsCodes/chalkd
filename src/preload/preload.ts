@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 const api = {
-  spike: {
-    env: () => ipcRenderer.invoke('spike:env'),
-    log: (entry: unknown) => ipcRenderer.send('spike:log', entry),
+  dev: {
+    env: () => ipcRenderer.invoke('dev:env'),
+    log: (entry: unknown) => ipcRenderer.send('dev:log', entry),
   },
 };
 

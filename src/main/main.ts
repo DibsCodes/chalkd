@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'node:path';
+import { runSelfTest } from './selftest';
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -17,6 +18,10 @@ const createWindow = () => {
   win.once('ready-to-show', () => {
     win.maximize();
     win.show();
+    const selfTestDir = process.env.CHALKD_SELFTEST;
+    if (selfTestDir) {
+      runSelfTest(win, selfTestDir).finally(() => app.quit());
+    }
   });
 
   // Pinch must reach our canvas, not zoom the page itself.
@@ -24,18 +29,21 @@ const createWindow = () => {
     win.webContents.setVisualZoomLevelLimits(1, 1);
   });
 
+  const page = process.env.CHALKD_SPIKE ? 'spike.html' : 'index.html';
+  const search = process.env.CHALKD_BENCH ? 'bench=1' : '';
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/${page}?${search}`);
   } else {
     win.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/${page}`),
+      { search },
     );
   }
 };
 
-// Phase 0 spike: the renderer reports what input it sees; we print it to
-// stdout so a test session can be read back from the terminal.
-ipcMain.handle('spike:env', () => ({
+// Dev diagnostics (input spike, benchmark): the renderer reports what it
+// sees and we print it to stdout so a session can be read back later.
+ipcMain.handle('dev:env', () => ({
   electron: process.versions.electron,
   chrome: process.versions.chrome,
   ozonePlatform:
@@ -52,8 +60,14 @@ ipcMain.handle('spike:env', () => ({
   })),
 }));
 
-ipcMain.on('spike:log', (_event, entry: unknown) => {
-  console.log(`[spike] ${JSON.stringify(entry)}`);
+ipcMain.on('dev:log', (_event, entry: unknown) => {
+  console.log(`[chalkd] ${JSON.stringify(entry)}`);
+  if (
+    process.env.CHALKD_BENCH &&
+    (entry as { benchDone?: boolean })?.benchDone
+  ) {
+    app.quit();
+  }
 });
 
 app.whenReady().then(createWindow);

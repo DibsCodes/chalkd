@@ -6,12 +6,11 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     />
-    <title>Chalkd</title>
+    <title>Chalkd · input spike</title>
   </head>
   <body>
-    <div id="app">
-      <div id="board"></div>
-    </div>
-    <script type="module" src="/src/renderer/app.ts"></script>
+    <canvas id="board"></canvas>
+    <pre id="hud"></pre>
+    <script type="module" src="/src/renderer/spike/spike.ts"></script>
   </body>
 </html>
