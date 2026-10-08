@@ -1,13 +1,26 @@
 # Adds the "Chalkd" printer (anything printed to it opens as a new board)
 # and the watcher that opens Chalkd when a printout arrives.
 
+cups_running() {
+  lpstat -r 2>/dev/null | grep -q 'scheduler is running'
+}
+
+# The printer can only be added while CUPS runs; a fresh CUPS install is off.
+start_cups() {
+  cups_running && return 0
+  echo ':: Turning on CUPS (the printing service) for the Chalkd printer.'
+  systemctl enable --now cups.service >/dev/null 2>&1 || return 1
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    cups_running && return 0
+    sleep 0.5
+  done
+  return 1
+}
+
 add_printer() {
-  if ! command -v lpadmin >/dev/null 2>&1; then
-    return
-  fi
-  if ! lpstat -r 2>/dev/null | grep -q 'scheduler is running'; then
-    echo ':: CUPS is not running, so the Chalkd printer was not added.'
-    echo '   Start it (sudo systemctl enable --now cups) and reinstall chalkd.'
+  if ! start_cups; then
+    echo ':: CUPS could not be started, so the Chalkd printer was not added.'
+    echo '   Run: sudo systemctl enable --now cups, then reinstall chalkd.'
     return
   fi
   # lpadmin warns that printer drivers are deprecated; that's expected.

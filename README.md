@@ -8,13 +8,13 @@ See [PLAN.md](PLAN.md) for the design and build phases.
 
 ## Install
 
-On Arch Linux or Omarchy, download `chalkd-1.1.0-1-x86_64.pkg.tar.zst` from the [latest release](https://github.com/DibsCodes/chalkd/releases/latest) and install it:
+On Arch Linux or Omarchy, download `chalkd-1.1.1-1-x86_64.pkg.tar.zst` from the [latest release](https://github.com/DibsCodes/chalkd/releases/latest) and install it:
 
 ```sh
-sudo pacman -U chalkd-1.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U chalkd-1.1.1-1-x86_64.pkg.tar.zst
 ```
 
-Chalkd then shows up in the app launcher. If CUPS is running, the install also adds the **Chalkd** printer. If you added the printer from a source checkout before, run `npm run printer:uninstall` first, or pacman will refuse to overwrite its files.
+Chalkd then shows up in the app launcher. The install also adds the **Chalkd** printer, installing and turning on CUPS (the printing service) if needed. If you added the printer from a source checkout before, run `npm run printer:uninstall` first, or pacman will refuse to overwrite its files.
 
 To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy `PKGBUILD` and `chalkd.install` into an empty folder and run `makepkg -si`.
 

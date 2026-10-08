@@ -134,7 +134,7 @@ A "Chalkd" printer (CUPS) lets any app print straight onto a board. Each printou
 - `scripts/printer/chalkd-backend` is the CUPS backend. It's installed root-owned with mode 0700, so CUPS runs it as root, and it writes each job into the printing user's `~/.local/share/chalkd/printed/` *as that user* (`<time>-<job>.pdf` plus a `.title` file, renamed into place last, mode 0600).
 - `scripts/printer/chalkd.ppd` has no driver: CUPS converts what's printed to PDF and hands it straight over.
 - The app watches that folder, takes one job at a time, and deletes it once its board exists. The main process remembers which board each job became, so a window reload partway through can't make a second board.
-- Setup needs admin rights once: `npm run printer:install` (and `printer:uninstall`). The Arch package does this at install time.
+- Setup needs admin rights once: `npm run printer:install` (and `printer:uninstall`). The Arch package does this at install time; CUPS is a hard dependency, and the install hook turns CUPS on (`systemctl enable --now cups.service`) if it isn't running.
 - **Opening Chalkd on print:** the package ships a systemd user path unit, `chalkd-print.path`, enabled for all users. It fires on changes in the inbox folder (not on jobs merely existing, so an unread job can't cause a relaunch loop) and starts `chalkd-print.service`, which runs Chalkd only if a finished `.pdf` is waiting. `KillMode=mixed`, because Electron's main process crashes if systemd signals all its helper processes at once.
 - **Single instance:** Chalkd holds a single-instance lock (per settings folder). A second launch, from the launcher or the watcher, brings the open window forward and quits.
 

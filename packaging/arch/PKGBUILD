@@ -1,14 +1,14 @@
 # Maintainer: Dibs <jdibello89@gmail.com>
 pkgname=chalkd
-pkgver=1.1.0
+pkgver=1.1.1
 pkgrel=1
 pkgdesc='A touch-first infinite whiteboard for teachers'
 arch=('x86_64')
 url='https://github.com/DibsCodes/chalkd'
 license=('GPL-3.0-or-later')
-depends=('alsa-lib' 'gtk3' 'nss')
+# CUPS runs the Chalkd printer (chalkd.install adds it and starts CUPS).
+depends=('alsa-lib' 'cups' 'gtk3' 'nss')
 makedepends=('git' 'nodejs' 'npm')
-optdepends=('cups: the Chalkd printer, which opens printouts as boards')
 install=chalkd.install
 # Electron ships its own prebuilt binaries.
 options=('!strip' '!debug')
