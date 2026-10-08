@@ -49,12 +49,13 @@
     if (!dir || dir === root) return;
     changingFolder = true;
     try {
-      await board.flush();
+      await board.pause();
       await board.show(await window.chalkd.library.setRoot(dir));
       root = dir;
     } catch (err) {
       showToast(`Couldn't use that folder: ${errorMessage(err)}`);
     } finally {
+      board.resume();
       changingFolder = false;
     }
   }

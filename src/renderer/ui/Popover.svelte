@@ -45,11 +45,11 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: 35;
   }
   .popover {
     position: fixed;
-    z-index: 21;
+    z-index: 36;
     max-height: calc(100vh - 100px);
     overflow-y: auto;
     padding: 16px;

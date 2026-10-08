@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSettings, BoardChanges, BoardData } from '../shared/types';
+import type {
+  AppSettings,
+  BoardChanges,
+  BoardData,
+  LibraryState,
+} from '../shared/types';
 
 const api = {
   settings: {
@@ -14,10 +19,29 @@ const api = {
       ipcRenderer.invoke('library:choose-folder'),
     setRoot: (dir: string): Promise<BoardData> =>
       ipcRenderer.invoke('library:set-root', dir),
+    tree: (): Promise<LibraryState> => ipcRenderer.invoke('library:tree'),
+    createBoard: (notebook: string): Promise<BoardData> =>
+      ipcRenderer.invoke('library:create-board', notebook),
+    createNotebook: (parent: string): Promise<BoardData> =>
+      ipcRenderer.invoke('library:create-notebook', parent),
+    rename: (rel: string, name: string): Promise<LibraryState> =>
+      ipcRenderer.invoke('library:rename', rel, name),
+    /** Move into `parent`, just before sibling `before` (or at the end). */
+    move: (
+      rel: string,
+      parent: string,
+      before: string | null,
+    ): Promise<LibraryState> =>
+      ipcRenderer.invoke('library:move', rel, parent, before),
+    /** Moves to the system trash, or deletes outright if `permanent`. */
+    delete: (rel: string, permanent = false): Promise<LibraryState> =>
+      ipcRenderer.invoke('library:delete', rel, permanent),
   },
   board: {
     openInitial: (): Promise<BoardData> =>
       ipcRenderer.invoke('board:open-initial'),
+    open: (rel: string): Promise<BoardData> =>
+      ipcRenderer.invoke('board:open', rel),
     write: (changes: BoardChanges): Promise<void> =>
       ipcRenderer.invoke('board:write', changes),
     /** Blocking write for the window's last moments. Returns an error or null. */

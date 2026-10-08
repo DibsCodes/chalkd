@@ -6,10 +6,12 @@
   import { press } from './press';
 
   let {
+    onMenu,
     onEditPreset,
     onEraserMenu,
     onSettings,
   }: {
+    onMenu: () => void;
     onEditPreset: (kind: PresetKind, id: string, anchor: HTMLElement) => void;
     onEraserMenu: (anchor: HTMLElement) => void;
     onSettings: () => void;
@@ -84,6 +86,10 @@
 {/snippet}
 
 <header class="toolbar">
+  <button type="button" class="tool" aria-label="Notebooks" onclick={onMenu}>
+    <Icon name="menu" />
+  </button>
+  <div class="divider"></div>
   <div class="tools">
     {@render presetGroup('pen', 'Pens')}
     <div class="divider"></div>

@@ -3,10 +3,15 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   statSync,
 } from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_BACKGROUND, type Background } from '../shared/types';
+import {
+  DEFAULT_BACKGROUND,
+  type Background,
+  type TreeNode,
+} from '../shared/types';
 import { BoardFile } from './board-file';
 import { writeFileAtomic } from './fs-util';
 
@@ -26,11 +31,17 @@ export class Library {
     private newBoardBackground: () => Background = () => DEFAULT_BACKGROUND,
   ) {}
 
-  /** Make sure the library exists and holds at least one board. */
+  /**
+   * Make sure the library exists and holds at least one board. If there are
+   * notebooks but no boards (say, the last one was deleted), the new board
+   * goes into the first notebook rather than a new one.
+   */
   ensure(now = new Date()): void {
     mkdirSync(this.root, { recursive: true });
     if (this.firstBoard()) return;
-    const notebook = this.createNotebook('', FIRST_NOTEBOOK);
+    const notebook =
+      this.children('').find((n) => !n.endsWith(BOARD_EXT)) ??
+      this.createNotebook('', FIRST_NOTEBOOK);
     this.createBoard(notebook, now);
   }
 
@@ -95,6 +106,71 @@ export class Library {
     return [...listed, ...rest];
   }
 
+  /** The whole library as a tree, in display order. */
+  tree(dir = ''): TreeNode[] {
+    return this.children(dir).map((name) => {
+      const rel = path.join(dir, name);
+      return name.endsWith(BOARD_EXT)
+        ? { type: 'board', name: boardDisplayName(rel), path: rel }
+        : { type: 'notebook', name, path: rel, children: this.tree(rel) };
+    });
+  }
+
+  /** Rename in place, keeping its spot in the order. Returns the new path. */
+  rename(rel: string, newName: string): string {
+    const dir = parentOf(rel);
+    const oldName = path.basename(rel);
+    const ext = rel.endsWith(BOARD_EXT) ? BOARD_EXT : '';
+    const trimmed =
+      ext && newName.endsWith(ext) ? newName.slice(0, -ext.length) : newName;
+    const wanted = sanitize(trimmed);
+    if (wanted + ext === oldName) return rel;
+    const order = this.children(dir);
+    const finalName = this.uniqueName(dir, wanted, ext) + ext;
+    renameSync(this.abs(rel), this.abs(path.join(dir, finalName)));
+    this.writeOrder(
+      dir,
+      order.map((n) => (n === oldName ? finalName : n)),
+    );
+    return path.join(dir, finalName);
+  }
+
+  /**
+   * Move into `parent` (possibly the same folder, i.e. a reorder), placed just
+   * before the sibling named `before`, or at the end. Returns the new path.
+   */
+  move(rel: string, parent: string, before: string | null): string {
+    const name = path.basename(rel);
+    const from = parentOf(rel);
+    if (!rel.endsWith(BOARD_EXT) && isSameOrInside(parent, rel)) {
+      throw new Error("A notebook can't go inside itself");
+    }
+    let finalName = name;
+    if (from !== parent) {
+      const ext = rel.endsWith(BOARD_EXT) ? BOARD_EXT : '';
+      const sourceOrder = this.children(from).filter((n) => n !== name);
+      finalName = this.uniqueName(parent, path.basename(name, ext), ext) + ext;
+      renameSync(this.abs(rel), this.abs(path.join(parent, finalName)));
+      this.writeOrder(from, sourceOrder);
+    }
+    const order = this.children(parent).filter((n) => n !== finalName);
+    const at = before === null ? -1 : order.indexOf(before);
+    order.splice(at < 0 ? order.length : at, 0, finalName);
+    this.writeOrder(parent, order);
+    return path.join(parent, finalName);
+  }
+
+  /** Remove via `trash` (the system trash in the app) and fix up the order. */
+  async remove(
+    rel: string,
+    trash: (abs: string) => Promise<void>,
+  ): Promise<void> {
+    const dir = parentOf(rel);
+    const order = this.children(dir).filter((n) => n !== path.basename(rel));
+    await trash(this.abs(rel));
+    this.writeOrder(dir, order);
+  }
+
   createNotebook(parent: string, name: string): string {
     const finalName = this.uniqueName(parent, sanitize(name), '');
     mkdirSync(this.abs(path.join(parent, finalName)));
@@ -136,6 +212,10 @@ export class Library {
     // anything that appeared on disk without it.
     const order = this.children(dir).filter((n) => n !== name);
     order.push(name);
+    this.writeOrder(dir, order);
+  }
+
+  private writeOrder(dir: string, order: string[]): void {
     writeFileAtomic(
       this.abs(path.join(dir, ORDER_FILE)),
       JSON.stringify(order, null, 2) + '\n',
@@ -165,6 +245,17 @@ export function autoBoardName(now: Date): string {
     minute: '2-digit',
   });
   return `${day} · ${time}`;
+}
+
+/** Library-relative parent folder ('' for the top level). */
+export function parentOf(rel: string): string {
+  const dir = path.dirname(rel);
+  return dir === '.' ? '' : dir;
+}
+
+/** Is `rel` the same as `ancestor`, or somewhere inside it? */
+export function isSameOrInside(rel: string, ancestor: string): boolean {
+  return rel === ancestor || rel.startsWith(ancestor + path.sep);
 }
 
 export function boardDisplayName(rel: string): string {

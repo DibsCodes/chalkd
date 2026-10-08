@@ -28,8 +28,14 @@ export async function runSelfTest(
       `(() => {
         const t = ${JSON.stringify(target)};
         let el = null;
-        try { el = document.querySelector(t); } catch {}
-        el ??= [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === t);
+        if (t.startsWith('row:')) {
+          el = document.querySelectorAll('[role=treeitem]')[Number(t.slice(4))];
+        } else {
+          try { el = document.querySelector(t); } catch {}
+          el ??= [...document.querySelectorAll('button, [role=treeitem]')].find(
+            (b) => b.textContent.trim() === t,
+          );
+        }
         el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         const r = el?.getBoundingClientRect();
         return r ? [r.left + r.width / 2, r.top + r.height / 2] : null;
@@ -93,9 +99,107 @@ export async function runSelfTest(
     await pause(60);
   };
 
+  const type = async (text: string) => {
+    for (const ch of text) wc.sendInputEvent({ type: 'char', keyCode: ch });
+    await pause(100);
+  };
+
+  /** Long-press `from`, then drag to just above/below `to` (or onto its middle). */
+  const dragRow = async (
+    from: string,
+    to: string,
+    where: 'above' | 'below' | 'onto',
+  ) => {
+    const [x0, y0] = await center(from);
+    const [x1, yc] = await center(to);
+    const y1 = where === 'above' ? yc - 18 : where === 'below' ? yc + 18 : yc;
+    wc.sendInputEvent({ type: 'mouseMove', x: x0, y: y0 });
+    wc.sendInputEvent({
+      type: 'mouseDown',
+      x: x0,
+      y: y0,
+      button: 'left',
+      clickCount: 1,
+    });
+    await pause(650);
+    for (let i = 1; i <= 20; i++) {
+      const x = x0 + ((x1 - x0) * i) / 20;
+      const y = y0 + ((y1 - y0) * i) / 20;
+      wc.sendInputEvent({
+        type: 'mouseMove',
+        x,
+        y,
+        modifiers: ['leftbuttondown'],
+      });
+      await pause(16);
+    }
+    await shot('drag-in-progress');
+    wc.sendInputEvent({
+      type: 'mouseUp',
+      x: x1,
+      y: y1,
+      button: 'left',
+      clickCount: 1,
+    });
+    await pause(400);
+  };
+
   await pause(1000);
   if (process.env.CHALKD_SELFTEST_MODE === 'view') {
     await shot('reopened');
+    return;
+  }
+  if (process.env.CHALKD_SELFTEST_MODE === 'drawer') {
+    const [w, h] = win.getContentSize();
+    const scribble = (dx: number): [number, number][] =>
+      Array.from({ length: 60 }, (_, i) => [
+        w / 2 + dx + i * 4,
+        h / 2 + Math.sin(i / 5) * 40,
+      ]);
+
+    await drag(scribble(-200)); // on the first board
+    await tap('[aria-label="Notebooks"]');
+    await shot('d1-drawer');
+
+    await tap('Board'); // new board in the same notebook, opens it
+    await drag(scribble(0));
+    await drag(scribble(60));
+    await tap('[aria-label="Notebooks"]');
+    await shot('d2-two-boards');
+
+    await tap('Notebook'); // new notebook, starts renaming
+    await type('Science');
+    await key('Enter');
+    await pause(300);
+    await shot('d3-renamed-notebook');
+
+    await tap('row:1', 700); // long-press the first board → menu
+    await shot('d4-menu');
+    await tap('Move to…');
+    await shot('d5-move-dialog');
+    await tap('[aria-label="Move into Science"]');
+    await pause(300);
+    await shot('d6-moved');
+
+    // Drag the "Science" notebook above "My Notebook"'s first child.
+    await dragRow('Science', 'row:1', 'above');
+    await shot('d7-dragged');
+
+    await tap('row:2'); // open a board from the list
+    await pause(300);
+    await shot('d8-opened');
+
+    await tap('[aria-label="Notebooks"]');
+    await tap('row:2', 700);
+    await tap('Delete');
+    await shot('d9-confirm');
+    await tap('Delete board');
+    await pause(400);
+    // The sandbox lives on tmpfs, which has no trash: expect the fallback.
+    await shot('d10-no-trash');
+    await tap('Delete permanently');
+    await pause(400);
+    await shot('d11-deleted');
     return;
   }
 

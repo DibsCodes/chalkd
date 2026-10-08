@@ -6,6 +6,7 @@
   import { dialogs } from './state/dialogs.svelte';
   import { settings, type PresetKind } from './state/settings.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
+  import Drawer from './ui/Drawer.svelte';
   import EraserMenu from './ui/EraserMenu.svelte';
   import Popover from './ui/Popover.svelte';
   import PresetEditor from './ui/PresetEditor.svelte';
@@ -22,6 +23,7 @@
   let boardEl: HTMLDivElement;
   let popover = $state<OpenPopover | null>(null);
   let settingsOpen = $state(false);
+  let drawerOpen = $state(false);
   let ready = $state(false);
 
   const editing = $derived.by(() => {
@@ -75,7 +77,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (!e.ctrlKey || popover || settingsOpen || dialogs.confirm) return;
+    if (!e.ctrlKey || popover || settingsOpen || drawerOpen || dialogs.confirm) return;
     const key = e.key.toLowerCase();
     const editor = board.editor;
     if (key === 'z' && e.shiftKey) editor?.redo();
@@ -92,6 +94,10 @@
 
 <div class="app" bind:this={appEl}>
   <Toolbar
+    onMenu={() => {
+      popover = null;
+      drawerOpen = true;
+    }}
     onEditPreset={(kind, id, el) =>
       (popover = { type: 'preset', kind, id, anchor: el.getBoundingClientRect() })}
     onEraserMenu={(el) => (popover = { type: 'eraser', anchor: el.getBoundingClientRect() })}
@@ -132,6 +138,9 @@
     </Popover>
   {/if}
 
+  {#if drawerOpen}
+    <Drawer onclose={() => (drawerOpen = false)} />
+  {/if}
   {#if settingsOpen}
     <SettingsPanel onclose={() => (settingsOpen = false)} />
   {/if}

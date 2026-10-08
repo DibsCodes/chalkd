@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { AppSettings, BoardChanges } from '../shared/types';
 import { BoardSession } from './board-session';
 import { Library } from './library';
+import { registerLibraryIpc } from './library-ipc';
 import { runSelfTest } from './selftest';
 import { SettingsStore } from './settings';
 
@@ -136,6 +137,11 @@ ipcMain.handle('library:set-root', (_event, dir: string) => {
 });
 
 ipcMain.handle('board:open-initial', () => session.openInitial());
+
+registerLibraryIpc(
+  () => library,
+  () => session,
+);
 
 ipcMain.handle('board:write', (_event, changes: BoardChanges) => {
   session.write(changes);

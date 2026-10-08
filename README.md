@@ -6,7 +6,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
 
 ## Status
 
-**Phase 3: toolbar and tools. Usable in class on a single board.**
+**Phase 4: notebooks.** Everything from Phase 3, plus the ☰ drawer.
 
 - **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
 - **Highlighter:** sits underneath pen ink, so it never dulls your writing.
@@ -18,7 +18,12 @@ See [PLAN.md](PLAN.md) for the design and build phases.
   - tap gestures and palm rejection
   - light/dark theme
   - the Chalkd folder location
-- **Saving:** boards autosave to `~/Documents/Chalkd` and the last board reopens on launch. Switching boards arrives with the drawer in Phase 4.
+- **Saving:** boards autosave to `~/Documents/Chalkd` and the last board reopens on launch.
+- **Drawer (☰):** your notebooks and boards as a tree.
+  - Tap a board to open it; tap a notebook to expand it.
+  - **+ Board** and **+ Notebook** create new ones next to the board you're on.
+  - Long-press an item for Rename, Move to…, New board here (notebooks), and Delete. Deleting moves it to the system trash.
+  - Long-press and drag to reorder, or drop onto a notebook to move something into it.
 
 ## Running
 

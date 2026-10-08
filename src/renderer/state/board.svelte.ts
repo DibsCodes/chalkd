@@ -16,6 +16,8 @@ import { errorMessage, showToast } from '../ui/toast';
 class BoardController {
   editor: Editor | null = null;
   name = $state('');
+  /** Library-relative path of the open board. */
+  path = $state<string | null>(null);
   canUndo = $state(false);
   canRedo = $state(false);
   zoom = $state(1);
@@ -50,19 +52,34 @@ class BoardController {
     await this.autosave?.dispose();
     this.autosave = null;
     editor.load(data);
-    this.name = data.name;
+    this.setPath(data.path);
     this.background = data.meta.background;
     this.zoom = editor.camera.zoom;
-    document.title = `${data.name} · Chalkd`;
-    this.autosave = new Autosave(editor, window.chalkd.board, (err) =>
+    this.resume();
+  }
+
+  /**
+   * Save everything and stop autosaving, before the board file is closed,
+   * moved, or swapped for another. Pair with `resume` or `show`.
+   */
+  async pause(): Promise<void> {
+    await this.autosave?.dispose();
+    this.autosave = null;
+  }
+
+  /** Start autosaving again (no-op if it's already running). */
+  resume(): void {
+    if (this.autosave || !this.editor || this.path === null) return;
+    this.autosave = new Autosave(this.editor, window.chalkd.board, (err) =>
       showToast(`Couldn't save: ${errorMessage(err)}`),
     );
   }
 
-  /** Save pending edits; call before handing the board file to someone else. */
-  async flush(): Promise<void> {
-    await this.autosave?.dispose();
-    this.autosave = null;
+  /** The open board was renamed or moved (it's the same board). */
+  setPath(path: string | null): void {
+    this.path = path;
+    this.name = path ? boardName(path) : '';
+    document.title = path ? `${this.name} · Chalkd` : 'Chalkd';
   }
 
   applySettings(s: AppSettings): void {
@@ -78,6 +95,13 @@ class BoardController {
   setBackground(bg: Background): void {
     this.editor?.setBackground(bg);
   }
+}
+
+function boardName(path: string): string {
+  return path
+    .split('/')
+    .pop()!
+    .replace(/\.chalkd$/, '');
 }
 
 function buildTool(editor: Editor, s: AppSettings): Tool {

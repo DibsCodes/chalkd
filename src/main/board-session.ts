@@ -52,6 +52,39 @@ export class BoardSession {
     return { path: rel, name: boardDisplayName(rel), ...data };
   }
 
+  get currentPath(): string | null {
+    return this.current?.rel ?? null;
+  }
+
+  /**
+   * Run a file operation that may rename, move, or delete the open board (or
+   * a notebook containing it). The board is closed around the operation —
+   * SQLite keeps its journal next to the path it was opened with — then
+   * reopened wherever `relocate` says it went, or not at all if null.
+   */
+  async around<T>(
+    op: () => T | Promise<T>,
+    relocate: (rel: string, result: T) => string | null,
+  ): Promise<T> {
+    const rel = this.current?.rel ?? null;
+    this.close();
+    let result: T;
+    try {
+      result = await op();
+    } catch (err) {
+      if (rel) this.reopen(rel);
+      throw err;
+    }
+    const next = rel ? relocate(rel, result) : null;
+    if (next) this.reopen(next);
+    return result;
+  }
+
+  private reopen(rel: string): void {
+    this.current = { rel, file: BoardFile.open(this.library.abs(rel)) };
+    this.settings.set('lastBoard', rel);
+  }
+
   write(changes: BoardChanges): void {
     if (!this.current) throw new Error('No board is open');
     this.current.file.write(changes);

@@ -78,6 +78,28 @@ export interface BoardChanges {
   meta?: Partial<BoardMeta>;
 }
 
+// ---------- library ----------
+
+export interface TreeNode {
+  type: 'notebook' | 'board';
+  /** Display name (boards without the .chalkd extension). */
+  name: string;
+  /** Path relative to the library root. */
+  path: string;
+  children?: TreeNode[];
+}
+
+/** What the drawer needs after any library change. */
+export interface LibraryState {
+  tree: TreeNode[];
+  /** The open board's path (it may have moved), or null. */
+  current: string | null;
+  /** Set when the open board was deleted and another one opened instead. */
+  reopened?: BoardData;
+  /** Set after a rename or move: where the item went. */
+  moved?: { from: string; to: string };
+}
+
 // ---------- settings ----------
 
 /** A pen or highlighter the user has set up in the toolbar. */
