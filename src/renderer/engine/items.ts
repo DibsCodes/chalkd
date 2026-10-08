@@ -1,34 +1,12 @@
-import type { Point } from './camera';
+import type { Bounds, Item, StrokeItem, StrokeStyle } from '../../shared/types';
 
-export interface Bounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-export type StrokeKind = 'pen' | 'highlighter';
-
-export interface StrokeStyle {
-  kind: StrokeKind;
-  color: string;
-  width: number;
-  opacity: number;
-}
-
-export interface StrokeItem extends StrokeStyle {
-  id: string;
-  type: 'stroke';
-  /** Stacking order within the item's layer; higher draws on top. */
-  z: number;
-  /** World position that `points` are relative to. */
-  origin: Point;
-  /** Flat x,y pairs relative to `origin`. */
-  points: Float32Array;
-  bounds: Bounds;
-}
-
-export type Item = StrokeItem;
+export type {
+  Bounds,
+  Item,
+  StrokeItem,
+  StrokeKind,
+  StrokeStyle,
+} from '../../shared/types';
 
 /** Layers draw bottom to top: images (later), highlighters, pen ink. */
 export function layerRank(item: Item): number {

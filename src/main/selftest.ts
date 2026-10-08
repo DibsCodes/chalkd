@@ -5,7 +5,8 @@ import path from 'node:path';
 /**
  * `CHALKD_SELFTEST=<dir> npm start`: drives the real input path with
  * synthetic mouse events and saves screenshots, so rendering can be checked
- * without someone at the screen. Quits when done.
+ * without someone at the screen. Quits when done. With
+ * CHALKD_SELFTEST_MODE=view it only screenshots whatever board opens.
  */
 export async function runSelfTest(
   win: BrowserWindow,
@@ -51,6 +52,10 @@ export async function runSelfTest(
   };
 
   await pause(800);
+  if (process.env.CHALKD_SELFTEST_MODE === 'view') {
+    await shot('reopened');
+    return;
+  }
   const [w, h] = win.getContentSize();
   const cx = w / 2;
   const cy = h / 2;

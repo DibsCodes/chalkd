@@ -97,13 +97,13 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 ```
 
 - **`.order.json`** lists children in display order. New items are added at the end. Items found on disk but not listed (for example, copied in by hand) are added at the end by modification time. Listed items that no longer exist are dropped.
-- **A `.chalkd` file is a SQLite database** (`better-sqlite3`). It uses a rollback journal, not WAL, so there are no sidecar files to confuse folder-sync tools. Tables:
+- **A `.chalkd` file is a SQLite database**, using the `node:sqlite` module built into Electron's Node (no native module to rebuild). It uses a rollback journal, not WAL, so there are no sidecar files to confuse folder-sync tools. `PRAGMA application_id` marks the file as a Chalkd board, and `PRAGMA user_version` holds the format version. Tables:
   - `meta`: format version, background, last camera position
   - `items`: id, kind, z, bounding box, style JSON, points packed as Float32 relative to the stroke origin
   - `assets`: image and PDF-page bytes, stored once per content hash
 - **Autosave:** changes are written in small transactions batched about every 500 ms. There's no Save button; a crash loses at most the last half-second.
 - **Delete:** moves to the freedesktop trash (`shell.trashItem`), after confirmation.
-- **Settings and pen presets:** `~/.config/chalkd/settings.json`.
+- **Settings and pen presets:** `~/.config/chalkd/settings.json`. The last open board is stored there too.
 - **On launch:** reopens the last board. The very first launch creates `My Notebook/` with one board in it.
 
 ## Drawer
@@ -191,5 +191,4 @@ Each phase ends with something to try on the touch monitor.
 - **Touch under Electron on Wayland/Hyprland.** This is the whole point of Phase 0. Fallback: run under XWayland.
 - **Palm rejection** needs the monitor to report contact size, and many cheap touch panels don't.
 - **File picker:** it comes from the desktop portal and may not be touch-friendly. An in-app picker can come later.
-- **`better-sqlite3`** is a native module and has to be rebuilt for Electron's Node version. Forge handles this.
 - **Big PDFs** (dozens of pages at 2×) increase memory use and may need pages decoded on demand.

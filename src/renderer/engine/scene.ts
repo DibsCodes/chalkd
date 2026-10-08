@@ -61,6 +61,10 @@ export class Scene {
     for (const fn of this.listeners) fn(change);
   }
 
+  all(): Item[] {
+    return [...this.entries.values()].map((e) => e.item);
+  }
+
   /** Items overlapping `bounds`, in render order (bottom first). */
   query(bounds: Bounds): Item[] {
     return this.tree

@@ -119,3 +119,28 @@ body {
   border-radius: 8px;
   pointer-events: none;
 }
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.toast {
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #2b303a;
+  color: #f4f6fa;
+  font:
+    500 15px/1.35 system-ui,
+    sans-serif;
+  box-shadow: var(--chrome-shadow);
+}

@@ -1,6 +1,7 @@
 import { Camera, clampZoom, type Point } from './camera';
 import { History } from './history';
 import { InputRouter, type InputOptions, type InputTarget } from './input';
+import type { BoardMeta, Item } from '../../shared/types';
 import type { StrokeStyle } from './items';
 import { Renderer } from './renderer';
 import { Scene } from './scene';
@@ -50,6 +51,21 @@ export class Editor implements InputTarget {
     this.stopAnimation();
     this.input.dispose();
     this.renderer.dispose();
+  }
+
+  /** Replace everything with a board loaded from disk. */
+  load(board: { meta: BoardMeta; items: Item[] }): void {
+    this.stopAnimation();
+    this.tool.cancel();
+    this.history.clear();
+    this.scene.apply({ added: board.items, removed: this.scene.all() });
+    this.renderer.background = board.meta.background;
+    if (board.meta.camera) {
+      this.camera.state = board.meta.camera;
+      this.cameraChanged();
+    } else {
+      this.centerOn({ x: 0, y: 0 }, 1);
+    }
   }
 
   // ---------- InputTarget ----------

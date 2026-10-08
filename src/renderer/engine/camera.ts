@@ -1,7 +1,6 @@
-export interface Point {
-  x: number;
-  y: number;
-}
+import type { CameraState, Point } from '../../shared/types';
+
+export type { Point } from '../../shared/types';
 
 /**
  * Maps unbounded world coordinates to screen (CSS pixel) coordinates.
@@ -40,6 +39,16 @@ export class Camera {
     this.x = other.x;
     this.y = other.y;
     this.zoom = other.zoom;
+  }
+
+  get state(): CameraState {
+    return { x: this.x, y: this.y, zoom: this.zoom };
+  }
+
+  set state(s: CameraState) {
+    this.x = s.x;
+    this.y = s.y;
+    this.zoom = clampZoom(s.zoom);
   }
 
   clone(): Camera {

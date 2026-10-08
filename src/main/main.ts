@@ -1,6 +1,35 @@
 import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import type { BoardChanges } from '../shared/types';
+import { BoardSession } from './board-session';
+import { Library } from './library';
 import { runSelfTest } from './selftest';
+import { SettingsStore } from './settings';
+
+// Benchmarks and self-tests must never touch the real library, so they run
+// in a throwaway sandbox unless CHALKD_SANDBOX names one to reuse.
+const isDevRun = Boolean(
+  process.env.CHALKD_BENCH || process.env.CHALKD_SELFTEST,
+);
+const sandbox =
+  process.env.CHALKD_SANDBOX ??
+  (isDevRun ? mkdtempSync(path.join(os.tmpdir(), 'chalkd-')) : null);
+
+const configDir = sandbox
+  ? path.join(sandbox, 'config')
+  : path.join(app.getPath('appData'), 'chalkd');
+app.setPath('userData', configDir);
+
+const settings = new SettingsStore(configDir);
+const library = new Library(
+  settings.get('rootDir') ??
+    (sandbox
+      ? path.join(sandbox, 'library')
+      : path.join(app.getPath('documents'), 'Chalkd')),
+);
+const session = new BoardSession(library, settings);
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -70,7 +99,25 @@ ipcMain.on('dev:log', (_event, entry: unknown) => {
   }
 });
 
+ipcMain.handle('board:open-initial', () => session.openInitial());
+
+ipcMain.handle('board:write', (_event, changes: BoardChanges) => {
+  session.write(changes);
+});
+
+// Used only while the window is closing, when async IPC may never land.
+ipcMain.on('board:write-sync', (event, changes: BoardChanges) => {
+  try {
+    session.write(changes);
+    event.returnValue = null;
+  } catch (err) {
+    event.returnValue = String(err);
+  }
+});
+
 app.whenReady().then(createWindow);
+
+app.on('will-quit', () => session.close());
 
 app.on('window-all-closed', () => {
   app.quit();

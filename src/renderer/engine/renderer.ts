@@ -1,22 +1,12 @@
 import type { Camera } from './camera';
 import { drawStroke } from './ink';
-import type { Bounds } from './items';
+import {
+  DEFAULT_BACKGROUND,
+  type Background,
+  type Bounds,
+  type Pattern,
+} from '../../shared/types';
 import type { Scene, SceneChange } from './scene';
-
-export type Pattern = 'blank' | 'grid' | 'lines' | 'dots';
-
-export interface Background {
-  color: string;
-  pattern: Pattern;
-  /** Pattern spacing in world units. */
-  spacing: number;
-}
-
-export const DEFAULT_BACKGROUND: Background = {
-  color: '#ffffff',
-  pattern: 'dots',
-  spacing: 40,
-};
 
 /** Above this full-redraw cost, pan/zoom moves a bitmap snapshot instead. */
 const SNAPSHOT_THRESHOLD_MS = 6;
