@@ -11,7 +11,6 @@ class FakeTarget implements InputTarget {
   camera = new Camera();
   log: string[] = [];
   moves: Point[] = [];
-  taps: number[] = [];
 
   toolDown() {
     this.log.push('down');
@@ -33,10 +32,6 @@ class FakeTarget implements InputTarget {
   gestureEnd() {
     this.log.push('gestureEnd');
   }
-  tap(n: number) {
-    this.taps.push(n);
-    this.log.push(`tap${n}`);
-  }
 }
 
 let target: FakeTarget;
@@ -48,7 +43,7 @@ function setup(options: Partial<InputOptions> = {}) {
   clock = 0;
   router = new InputRouter(
     target,
-    { palmContactPx: null, tapGestures: true, ...options },
+    { palmContactPx: null, ...options },
     () => clock,
   );
 }
@@ -194,86 +189,6 @@ describe('two fingers', () => {
     up(2, 400, 400);
     expect(target.log).toEqual(['down', 'move', 'up']);
     expect(target.camera.x).toBe(0);
-  });
-});
-
-describe('tap gestures', () => {
-  it('2-finger tap → undo, leaving no stray stroke or camera change', () => {
-    down(1, 100, 100);
-    clock = 30;
-    down(2, 180, 100);
-    clock = 60;
-    move(2, 183, 102); // a little jitter
-    clock = 150;
-    up(1, 100, 100);
-    up(2, 183, 102);
-    expect(target.taps).toEqual([2]);
-    expect(target.log).not.toContain('up');
-    expect(target.camera.x).toBe(0);
-    expect(target.camera.y).toBe(0);
-    expect(target.camera.zoom).toBe(1);
-  });
-
-  it('3-finger tap → redo', () => {
-    down(1, 100, 100);
-    clock = 20;
-    down(2, 180, 100);
-    clock = 40;
-    down(3, 260, 100);
-    clock = 160;
-    up(1, 100, 100);
-    up(2, 180, 100);
-    up(3, 260, 100);
-    expect(target.taps).toEqual([3]);
-  });
-
-  it('a slow two-finger tap still undoes and drops the dot it started', () => {
-    down(1, 100, 100);
-    clock = 180; // after the cancel window
-    down(2, 180, 100);
-    clock = 230;
-    up(1, 100, 100);
-    up(2, 180, 100);
-    expect(target.log).toEqual(['down', 'cancel', 'tap2']);
-  });
-
-  it('is not a tap when the fingers stay down too long', () => {
-    down(1, 100, 100);
-    clock = 20;
-    down(2, 180, 100);
-    clock = 600;
-    up(1, 100, 100);
-    up(2, 180, 100);
-    expect(target.taps).toEqual([]);
-  });
-
-  it('is not a tap when the fingers move', () => {
-    down(1, 100, 100);
-    clock = 20;
-    down(2, 180, 100);
-    clock = 80;
-    move(1, 100, 140);
-    clock = 150;
-    up(1, 100, 140);
-    up(2, 180, 100);
-    expect(target.taps).toEqual([]);
-  });
-
-  it('can be turned off', () => {
-    setup({ tapGestures: false });
-    down(1, 100, 100);
-    clock = 20;
-    down(2, 180, 100);
-    clock = 120;
-    up(1, 100, 100);
-    up(2, 180, 100);
-    expect(target.taps).toEqual([]);
-    expect(target.log).toEqual([
-      'down',
-      'cancel',
-      'gestureStart',
-      'gestureEnd',
-    ]);
   });
 });
 

@@ -3,8 +3,6 @@ import { clampZoom, type Camera, type Point } from './camera';
 // PLAN.md › Input model.
 export const CANCEL_WINDOW_MS = 150;
 export const CANCEL_TRAVEL_PX = 24;
-export const TAP_MAX_MS = 250;
-export const TAP_SLOP_PX = 10;
 const WHEEL_IDLE_MS = 150;
 
 /** What the router drives. Tool points are in world coordinates. */
@@ -17,13 +15,11 @@ export interface InputTarget {
   cameraChanged(): void;
   gestureStart(): void;
   gestureEnd(): void;
-  tap(fingers: number): void;
 }
 
 export interface InputOptions {
   /** Ignore touches whose reported contact is wider than this (CSS px). */
   palmContactPx: number | null;
-  tapGestures: boolean;
 }
 
 /** The subset of PointerEvent the router reads; lets tests feed fakes. */
@@ -53,9 +49,6 @@ interface Sequence {
   /** The tool has an open stroke that still needs toolUp/toolCancel. */
   toolOpen: boolean;
   drawLifted: boolean;
-  maxFingers: number;
-  maxTravel: number;
-  camAtStart: { x: number; y: number; zoom: number };
 }
 
 interface GestureBase {
@@ -220,22 +213,17 @@ export class InputRouter {
 
     const seq = this.seq;
     if (!seq) {
-      const cam = this.target.camera;
       this.seq = {
         startAt: this.now(),
         mode: 'draw',
         drawId: e.pointerId,
         toolOpen: true,
         drawLifted: false,
-        maxFingers: 1,
-        maxTravel: 0,
-        camAtStart: { x: cam.x, y: cam.y, zoom: cam.zoom },
       };
       this.target.toolDown(this.world(e));
       return;
     }
 
-    seq.maxFingers = Math.max(seq.maxFingers, this.touches.size);
     if (seq.mode === 'gesture') {
       this.resetBase();
     } else if (
@@ -250,8 +238,7 @@ export class InputRouter {
       this.target.gestureStart();
       this.resetBase();
     }
-    // Otherwise a late finger while drawing is ignored (but still counts
-    // toward tap detection).
+    // Otherwise a late finger while drawing is ignored.
   }
 
   private touchMove(e: PointerLike): void {
@@ -260,7 +247,6 @@ export class InputRouter {
     if (!t || !seq) return;
     t.x = e.clientX - this.offset.x;
     t.y = e.clientY - this.offset.y;
-    seq.maxTravel = Math.max(seq.maxTravel, this.travel(e.pointerId));
 
     if (seq.mode === 'draw') {
       if (e.pointerId === seq.drawId && !seq.drawLifted) {
@@ -282,40 +268,21 @@ export class InputRouter {
         this.target.toolCancel();
         seq.toolOpen = false;
       }
-      // A clean lift is committed when the sequence ends, so a stray dot
-      // made by a slow two-finger tap can still be dropped.
+      // A clean lift is committed when the sequence ends.
     } else if (seq.mode === 'gesture') {
       this.resetBase();
     }
 
-    if (this.touches.size === 0) this.endSequence(cancelled);
+    if (this.touches.size === 0) this.endSequence();
   }
 
-  private endSequence(cancelled: boolean): void {
+  private endSequence(): void {
     const seq = this.seq!;
     this.seq = null;
     this.base = null;
 
-    const isTap =
-      !cancelled &&
-      this.options.tapGestures &&
-      seq.maxFingers >= 2 &&
-      this.now() - seq.startAt <= TAP_MAX_MS &&
-      seq.maxTravel < TAP_SLOP_PX;
-
-    if (seq.toolOpen) {
-      if (isTap) this.target.toolCancel();
-      else this.target.toolUp();
-    }
-    if (isTap) {
-      const cam = this.target.camera;
-      cam.x = seq.camAtStart.x;
-      cam.y = seq.camAtStart.y;
-      cam.zoom = seq.camAtStart.zoom;
-      this.target.cameraChanged();
-    }
+    if (seq.toolOpen) this.target.toolUp();
     if (seq.mode === 'gesture') this.target.gestureEnd();
-    if (isTap) this.target.tap(seq.maxFingers);
   }
 
   private resetBase(): void {

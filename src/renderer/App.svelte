@@ -85,6 +85,13 @@
     else document.documentElement.dataset.theme = theme;
   });
 
+  $effect(() => {
+    document.documentElement.style.setProperty(
+      '--toolbar-scale',
+      String(settings.value.toolbarScale),
+    );
+  });
+
   /** Files dragged in from the file manager. */
   async function onDrop(e: DragEvent) {
     e.preventDefault();

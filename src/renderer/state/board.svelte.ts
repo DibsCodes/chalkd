@@ -108,10 +108,7 @@ class BoardController {
   applySettings(s: AppSettings): void {
     const editor = this.editor;
     if (!editor) return;
-    editor.input.options = {
-      tapGestures: s.tapGestures,
-      palmContactPx: s.palmContactPx,
-    };
+    editor.input.options = { palmContactPx: s.palmContactPx };
     const tool = buildTool(editor, s);
     editor.setTool(tool);
     this.selectTool = tool instanceof SelectTool ? tool : null;

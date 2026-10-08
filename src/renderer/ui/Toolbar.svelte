@@ -174,7 +174,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: var(--toolbar-h);
+    height: var(--toolbar-base-h);
+    zoom: var(--toolbar-scale);
     display: flex;
     align-items: center;
     gap: 4px;

@@ -132,17 +132,6 @@
     <h3>Touch</h3>
     <label class="toggle">
       <span>
-        <span class="toggle-title">Tap gestures</span>
-        <span class="hint">Two-finger tap undoes, three-finger tap redoes.</span>
-      </span>
-      <input
-        type="checkbox"
-        checked={settings.value.tapGestures}
-        onchange={(e) => settings.update({ tapGestures: e.currentTarget.checked })}
-      />
-    </label>
-    <label class="toggle">
-      <span>
         <span class="toggle-title">Palm rejection</span>
         <span class="hint">Ignore large touches. Not every touchscreen reports touch size.</span>
       </span>
@@ -184,6 +173,21 @@
         >
       {/each}
     </div>
+    <label class="field">
+      <span class="field-label row">
+        <span>Toolbar size</span>
+        <span class="value">{Math.round(settings.value.toolbarScale * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min="0.5"
+        max="1.5"
+        step="0.05"
+        value={settings.value.toolbarScale}
+        oninput={(e) => settings.update({ toolbarScale: Number(e.currentTarget.value) })}
+      />
+      <span class="scale"><span>Smaller</span><span>Larger</span></span>
+    </label>
   </section>
 
   <section>

@@ -53,7 +53,6 @@ export class Editor implements InputTarget {
     );
     this.input = new InputRouter(this, {
       palmContactPx: null,
-      tapGestures: true,
       ...options,
     });
     this.input.attach(container);
@@ -142,11 +141,6 @@ export class Editor implements InputTarget {
 
   gestureEnd(): void {
     this.renderer.endGesture();
-  }
-
-  tap(fingers: number): void {
-    if (fingers === 2) this.undo();
-    else if (fingers >= 3) this.redo();
   }
 
   // ---------- commands ----------

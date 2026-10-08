@@ -13,7 +13,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 | Drawer order | Creation order, oldest on top; drag-and-drop to reorder or move into a notebook |
 | Storage | Plain folders under `~/Documents/Chalkd`, one `.chalkd` file per board; no built-in sync |
 | Naming | New boards are auto-named (`Oct 7 · 10:42`); rename later with a keyboard |
-| Gestures | 1 finger = current tool · 2 fingers = pan + pinch zoom · 2-finger tap = undo · 3-finger tap = redo |
+| Gestures | 1 finger = current tool · 2 fingers = pan + pinch zoom (tap-to-undo/redo was tried and dropped: it didn't register on the classroom touchscreen TV and wasn't wanted) |
 | Ink | Uniform width with smoothing |
 | Eraser | Partial (default) and whole-stroke modes |
 | Look | White boards by default; per-board background color + pattern |
@@ -42,7 +42,6 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 - **One finger:** the current tool.
 - **Two fingers:** pan and pinch-zoom at the same time, anchored at the midpoint between the fingers. Zoom range 10 %–800 %.
 - **Second-finger cancel:** drawing starts the instant a finger lands, so there's no lag. If a second finger lands within ~150 ms (before the stroke has traveled far), that stroke is discarded and the gesture becomes pan/zoom.
-- **Tap gestures:** 2 fingers down and up within ~250 ms with < 10 px movement → undo; 3 fingers → redo. Can be turned off in Settings.
 - **Palm rejection:** ignore contacts with a large reported contact size (threshold in Settings). Only works if the monitor reports contact size; Phase 0 checks this.
 - Fingers beyond the first two are ignored during a gesture.
 
@@ -142,7 +141,7 @@ PDFs are made by rendering the board to SVG in a hidden window and using Electro
   - Chalkd folder location
   - Default background for new boards
   - UI theme (light / dark / system)
-  - Tap gestures on/off
+  - Toolbar size (50–150%)
   - Smoothing strength
   - Palm-rejection threshold
 
@@ -169,7 +168,7 @@ Each phase ends with something to try on the touch monitor.
    - pinch is smooth
    - Hyprland doesn't take over the gestures
    - we know whether the monitor reports contact size
-1. **Canvas core.** Camera, smoothed strokes, R-tree culling, layered rendering, second-finger cancel, undo/redo with tap gestures, zoom pill. Everything stays in memory.
+1. **Canvas core.** Camera, smoothed strokes, R-tree culling, layered rendering, second-finger cancel, undo/redo, zoom pill. Everything stays in memory.
 2. **Persistence.** The `.chalkd` format, autosave, creating the root folder on first run, reopening the last board.
 3. **Toolbar and tools.** Pen and highlighter presets with their editor, eraser (both modes, size, clear), settings panel, backgrounds. → **Usable in class on a single board.**
 4. **Drawer.** The tree, `.order.json`, create / rename / delete, long-press menu, drag to reorder or move, Move to….

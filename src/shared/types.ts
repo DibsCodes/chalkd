@@ -178,7 +178,8 @@ export interface AppSettings {
   eraser: EraserSettings;
   defaultBackground: Background;
   theme: Theme;
-  tapGestures: boolean;
+  /** Size of the top toolbar, 1 = normal. */
+  toolbarScale: number;
   /** 0 = raw input, 1 = heavily smoothed. */
   smoothing: number;
   /** Ignore touches wider than this many px; null = off. */
@@ -208,7 +209,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   eraser: { mode: 'partial', size: 40 },
   defaultBackground: DEFAULT_BACKGROUND,
   theme: 'system',
-  tapGestures: true,
+  toolbarScale: 1,
   smoothing: 0.5,
   palmContactPx: null,
   export: {

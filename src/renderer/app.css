@@ -1,5 +1,9 @@
 :root {
-  --toolbar-h: 64px;
+  /* The toolbar is laid out at 64px tall, then zoomed by the
+     Toolbar size setting; --toolbar-h is its height on screen. */
+  --toolbar-scale: 1;
+  --toolbar-base-h: 64px;
+  --toolbar-h: calc(var(--toolbar-base-h) * var(--toolbar-scale));
   --touch-target: 48px;
 
   --fg: #1d2433;
