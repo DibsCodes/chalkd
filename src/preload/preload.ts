@@ -3,6 +3,7 @@ import type {
   AppSettings,
   BoardChanges,
   BoardData,
+  ImportFile,
   LibraryState,
 } from '../shared/types';
 
@@ -36,6 +37,15 @@ const api = {
     /** Moves to the system trash, or deletes outright if `permanent`. */
     delete: (rel: string, permanent = false): Promise<LibraryState> =>
       ipcRenderer.invoke('library:delete', rel, permanent),
+  },
+  import: {
+    /** Shows a file picker; resolves to the chosen files (empty if cancelled). */
+    chooseFiles: (): Promise<ImportFile[]> =>
+      ipcRenderer.invoke('import:choose-files'),
+    clipboardHasImage: (): Promise<boolean> =>
+      ipcRenderer.invoke('clipboard:has-image'),
+    clipboardImage: (): Promise<ImportFile | null> =>
+      ipcRenderer.invoke('clipboard:read-image'),
   },
   board: {
     openInitial: (): Promise<BoardData> =>

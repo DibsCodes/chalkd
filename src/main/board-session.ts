@@ -41,6 +41,7 @@ export class BoardSession {
     const file = BoardFile.open(this.library.abs(rel));
     let data;
     try {
+      file.collectGarbage();
       data = file.read();
     } catch (err) {
       file.close();

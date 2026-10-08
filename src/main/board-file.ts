@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
   DEFAULT_BACKGROUND,
+  type AssetData,
   type Background,
   type BoardChanges,
   type BoardMeta,
@@ -100,7 +101,7 @@ export class BoardFile {
     }
   }
 
-  read(): { meta: BoardMeta; items: Item[] } {
+  read(): { meta: BoardMeta; items: Item[]; assets: AssetData[] } {
     const meta: BoardMeta = { background: DEFAULT_BACKGROUND, camera: null };
     const metaRows = this.db.prepare('SELECT key, value FROM meta').all() as {
       key: string;
@@ -114,7 +115,21 @@ export class BoardFile {
     const rows = this.db
       .prepare('SELECT * FROM items ORDER BY z')
       .all() as unknown as ItemRow[];
-    return { meta, items: rows.map(rowToItem) };
+    const assets = this.db
+      .prepare(
+        `SELECT hash, mime, bytes FROM assets
+         WHERE hash IN (${REFERENCED_ASSETS})`,
+      )
+      .all() as unknown as AssetData[];
+    return { meta, items: rows.map(rowToItem), assets };
+  }
+
+  /**
+   * Drop image data no item uses any more (e.g. a deleted picture). Only safe
+   * when nothing could still undo back to it — i.e. right after opening.
+   */
+  collectGarbage(): void {
+    this.db.exec(`DELETE FROM assets WHERE hash NOT IN (${REFERENCED_ASSETS})`);
   }
 
   /** Apply a batch of edits atomically. */
@@ -122,6 +137,12 @@ export class BoardFile {
     const db = this.db;
     db.exec('BEGIN');
     try {
+      if (changes.assets?.length) {
+        const add = db.prepare(
+          'INSERT OR IGNORE INTO assets (hash, mime, bytes) VALUES (?, ?, ?)',
+        );
+        for (const a of changes.assets) add.run(a.hash, a.mime, a.bytes);
+      }
       if (changes.deletes.length) {
         const del = db.prepare('DELETE FROM items WHERE id = ?');
         for (const id of changes.deletes) del.run(id);
@@ -133,27 +154,7 @@ export class BoardFile {
               origin_x, origin_y, style, points)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         );
-        for (const item of changes.upserts) {
-          const { bounds: b, origin: o, points } = item;
-          put.run(
-            item.id,
-            item.type,
-            item.kind,
-            item.z,
-            b.minX,
-            b.minY,
-            b.maxX,
-            b.maxY,
-            o.x,
-            o.y,
-            JSON.stringify({
-              color: item.color,
-              width: item.width,
-              opacity: item.opacity,
-            }),
-            new Uint8Array(points.buffer, points.byteOffset, points.byteLength),
-          );
-        }
+        for (const item of changes.upserts) put.run(...itemToRow(item));
       }
       if (changes.meta) writeMeta(db, changes.meta);
       db.exec('COMMIT');
@@ -177,7 +178,76 @@ function writeMeta(db: DatabaseSync, meta: Partial<BoardMeta>): void {
   }
 }
 
+/** Asset hashes used by image items. */
+const REFERENCED_ASSETS =
+  "SELECT json_extract(style, '$.asset') FROM items WHERE type = 'image'";
+
+const NO_POINTS = new Uint8Array(0);
+
+function itemToRow(item: Item) {
+  const b = item.bounds;
+  if (item.type === 'image') {
+    return [
+      item.id,
+      'image',
+      'image',
+      item.z,
+      b.minX,
+      b.minY,
+      b.maxX,
+      b.maxY,
+      item.x,
+      item.y,
+      JSON.stringify({ asset: item.asset, w: item.w, h: item.h }),
+      NO_POINTS,
+    ] as const;
+  }
+  const p = item.points;
+  return [
+    item.id,
+    'stroke',
+    item.kind,
+    item.z,
+    b.minX,
+    b.minY,
+    b.maxX,
+    b.maxY,
+    item.origin.x,
+    item.origin.y,
+    JSON.stringify({
+      color: item.color,
+      width: item.width,
+      opacity: item.opacity,
+    }),
+    new Uint8Array(p.buffer, p.byteOffset, p.byteLength),
+  ] as const;
+}
+
 function rowToItem(row: ItemRow): Item {
+  const bounds = {
+    minX: row.min_x,
+    minY: row.min_y,
+    maxX: row.max_x,
+    maxY: row.max_y,
+  };
+  if (row.type === 'image') {
+    const style = JSON.parse(row.style) as {
+      asset: string;
+      w: number;
+      h: number;
+    };
+    return {
+      id: row.id,
+      type: 'image',
+      z: row.z,
+      asset: style.asset,
+      x: row.origin_x,
+      y: row.origin_y,
+      w: style.w,
+      h: style.h,
+      bounds,
+    };
+  }
   const style = JSON.parse(row.style) as {
     color: string;
     width: number;
@@ -195,12 +265,7 @@ function rowToItem(row: ItemRow): Item {
     opacity: style.opacity,
     origin: { x: row.origin_x, y: row.origin_y },
     points: new Float32Array(bytes.buffer, 0, bytes.byteLength / 4),
-    bounds: {
-      minX: row.min_x,
-      minY: row.min_y,
-      maxX: row.max_x,
-      maxY: row.max_y,
-    },
+    bounds,
   };
 }
 

@@ -4,13 +4,16 @@ import {
   type AppSettings,
   type Background,
   type BoardData,
+  type ImportFile,
 } from '../../shared/types';
 import { Autosave } from '../board/autosave';
+import { importFiles } from '../board/import';
 import { Editor } from '../engine/editor';
 import { EraserTool } from '../engine/tools/eraser';
 import { PenTool } from '../engine/tools/pen';
+import { SelectTool } from '../engine/tools/select';
 import type { Tool } from '../engine/tools/tool';
-import { errorMessage, showToast } from '../ui/toast';
+import { errorMessage, hideToast, showToast } from '../ui/toast';
 
 /** The open board: owns the editor and its autosave, and exposes UI state. */
 class BoardController {
@@ -22,8 +25,18 @@ class BoardController {
   canRedo = $state(false);
   zoom = $state(1);
   background = $state<Background>(DEFAULT_BACKGROUND);
+  /** The current selection's size and on-board position (select tool only). */
+  selection = $state<{
+    count: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  importing = $state(false);
 
   private autosave: Autosave | null = null;
+  private selectTool: SelectTool | null = null;
 
   attach(container: HTMLElement): Editor {
     const editor = new Editor(container);
@@ -39,6 +52,7 @@ class BoardController {
       requestAnimationFrame(() => {
         queued = false;
         this.zoom = editor.camera.zoom;
+        this.updateSelection();
       });
     });
     editor.onBackgroundChange((bg) => (this.background = bg));
@@ -89,7 +103,74 @@ class BoardController {
       tapGestures: s.tapGestures,
       palmContactPx: s.palmContactPx,
     };
-    editor.setTool(buildTool(editor, s));
+    const tool = buildTool(editor, s);
+    editor.setTool(tool);
+    this.selectTool = tool instanceof SelectTool ? tool : null;
+    this.selectTool?.onChange(() => this.updateSelection());
+    this.updateSelection();
+  }
+
+  deleteSelection(): void {
+    this.selectTool?.deleteSelection();
+  }
+
+  selectAll(): void {
+    this.selectTool?.selectAll();
+  }
+
+  clearSelection(): void {
+    this.selectTool?.clearSelection();
+  }
+
+  get hasSelection(): boolean {
+    return (this.selectTool?.selected.length ?? 0) > 0;
+  }
+
+  /** Place pictures and PDF pages on the board. */
+  async import(files: ImportFile[]): Promise<void> {
+    const editor = this.editor;
+    if (!editor || !files.length || this.importing) return;
+    this.importing = true;
+    try {
+      const placed = await importFiles(editor, files, (m) =>
+        showToast(m, 'import-progress'),
+      );
+      if (!placed)
+        showToast(
+          'Chalkd can import pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs.',
+        );
+    } catch (err) {
+      showToast(`Couldn't import that: ${errorMessage(err)}`);
+    } finally {
+      hideToast('import-progress');
+      this.importing = false;
+    }
+  }
+
+  /** Paste the picture on the clipboard, if there is one. */
+  async paste(): Promise<void> {
+    const file = await window.chalkd.import.clipboardImage();
+    if (file) await this.import([file]);
+    else showToast('There’s no picture on the clipboard to paste.');
+  }
+
+  private updateSelection(): void {
+    const editor = this.editor;
+    const tool = this.selectTool;
+    const b = tool?.bounds();
+    if (!editor || !tool || !b || !tool.selected.length) {
+      this.selection = null;
+      return;
+    }
+    const tl = editor.camera.toScreen(b.minX, b.minY);
+    const br = editor.camera.toScreen(b.maxX, b.maxY);
+    this.selection = {
+      count: tool.selected.length,
+      x: tl.x,
+      y: tl.y,
+      w: br.x - tl.x,
+      h: br.y - tl.y,
+    };
   }
 
   setBackground(bg: Background): void {
@@ -107,6 +188,7 @@ function boardName(path: string): string {
 function buildTool(editor: Editor, s: AppSettings): Tool {
   const t = s.tool;
   if (t.type === 'eraser') return new EraserTool(editor, { ...s.eraser });
+  if (t.type === 'select') return new SelectTool(editor);
   const list = t.type === 'pen' ? s.pens : s.highlighters;
   const preset = list.find((p) => p.id === t.presetId) ?? s.pens[0];
   const kind = list.includes(preset) ? t.type : 'pen';

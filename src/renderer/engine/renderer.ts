@@ -1,5 +1,6 @@
 import type { Camera } from './camera';
-import { drawStroke } from './ink';
+import type { AssetStore } from './assets';
+import { drawItem } from './draw';
 import {
   DEFAULT_BACKGROUND,
   type Background,
@@ -54,6 +55,7 @@ export class Renderer {
   private dirtyLive = true;
   private inGesture = false;
   private liveDrawer: LiveDrawer | null = null;
+  private hidden = new Set<string>();
   private frameId = 0;
   private resizeObserver: ResizeObserver;
   private unsubscribe: () => void;
@@ -63,7 +65,9 @@ export class Renderer {
     private container: HTMLElement,
     private scene: Scene,
     private camera: Camera,
+    private assets: AssetStore,
   ) {
+    assets.onReady = () => (this.dirtyContent = true);
     this.bg = this.addLayer({ alpha: false });
     this.content = this.addLayer({});
     this.live = this.addLayer({});
@@ -101,6 +105,15 @@ export class Renderer {
   setLive(drawer: LiveDrawer | null): void {
     this.liveDrawer = drawer;
     this.dirtyLive = true;
+  }
+
+  /**
+   * Leave these items out of the finished-items layer (a tool is previewing
+   * them, moved, on the live layer).
+   */
+  setHidden(ids: Iterable<string>): void {
+    this.hidden = new Set(ids);
+    this.dirtyContent = true;
   }
 
   invalidateLive(): void {
@@ -194,7 +207,9 @@ export class Renderer {
       !this.dirtyContent &&
       !this.snapshot &&
       change.removed.length === 0 &&
-      change.added.every((item) => item.kind === 'pen');
+      change.added.every(
+        (item) => item.type === 'stroke' && item.kind === 'pen',
+      );
     if (!appendOnly) {
       this.dirtyContent = true;
       return;
@@ -202,7 +217,8 @@ export class Renderer {
     const view = this.viewBounds();
     this.setWorldTransform(this.content);
     for (const item of change.added) {
-      if (intersects(item.bounds, view)) drawStroke(this.content, item);
+      if (intersects(item.bounds, view))
+        drawItem(this.content, item, this.assets);
     }
   }
 
@@ -230,7 +246,9 @@ export class Renderer {
 
     this.setWorldTransform(ctx);
     const items = this.scene.query(this.viewBounds());
-    for (const item of items) drawStroke(ctx, item);
+    for (const item of items) {
+      if (!this.hidden.has(item.id)) drawItem(ctx, item, this.assets);
+    }
 
     this.stats.contentMs = performance.now() - now;
     this.stats.visible = items.length;

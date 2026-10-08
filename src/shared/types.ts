@@ -33,7 +33,28 @@ export interface StrokeItem extends StrokeStyle {
   bounds: Bounds;
 }
 
-export type Item = StrokeItem;
+/** A picture placed on the board; its bytes live in the board's asset table. */
+export interface ImageItem {
+  id: string;
+  type: 'image';
+  z: number;
+  /** SHA-256 (hex) of the image bytes. */
+  asset: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  bounds: Bounds;
+}
+
+export type Item = StrokeItem | ImageItem;
+
+/** Image bytes, stored once per board no matter how many items use them. */
+export interface AssetData {
+  hash: string;
+  mime: string;
+  bytes: Uint8Array;
+}
 
 export type Pattern = 'blank' | 'grid' | 'lines' | 'dots';
 
@@ -69,6 +90,8 @@ export interface BoardData {
   name: string;
   meta: BoardMeta;
   items: Item[];
+  /** Image data used by the board's items. */
+  assets: AssetData[];
 }
 
 /** A batch of edits to persist. */
@@ -76,6 +99,15 @@ export interface BoardChanges {
   upserts: Item[];
   deletes: string[];
   meta?: Partial<BoardMeta>;
+  /** New image data (written before the items that use it). */
+  assets?: AssetData[];
+}
+
+/** A file the user picked, pasted, or dropped, ready to import. */
+export interface ImportFile {
+  name: string;
+  mime: string;
+  bytes: Uint8Array;
 }
 
 // ---------- library ----------
@@ -113,7 +145,8 @@ export interface Preset {
 export type ActiveTool =
   | { type: 'pen'; presetId: string }
   | { type: 'highlighter'; presetId: string }
-  | { type: 'eraser' };
+  | { type: 'eraser' }
+  | { type: 'select' };
 
 export interface EraserSettings {
   mode: 'partial' | 'stroke';

@@ -121,6 +121,9 @@ export class Autosave {
       upserts: [...this.upserts.values()],
       deletes: [...this.deletes],
     };
+    // Image data rides along with the items that use it, in one transaction.
+    const assets = this.editor.assets.takeUnsaved();
+    if (assets.length) changes.assets = assets;
     if (Object.keys(this.meta).length) changes.meta = this.meta;
     this.upserts = new Map();
     this.deletes = new Set();
@@ -139,5 +142,6 @@ export class Autosave {
       if (!this.upserts.has(id)) this.deletes.add(id);
     }
     this.meta = { ...changes.meta, ...this.meta };
+    if (changes.assets) this.editor.assets.restoreUnsaved(changes.assets);
   }
 }

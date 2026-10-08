@@ -1,4 +1,4 @@
-import type { BrowserWindow } from 'electron';
+import { BrowserWindow } from 'electron';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -149,6 +149,63 @@ export async function runSelfTest(
     await shot('reopened');
     return;
   }
+  if (process.env.CHALKD_SELFTEST_MODE === 'import') {
+    const testImport = async (name: string, mime: string, bytes: Buffer) => {
+      await wc.executeJavaScript(
+        `window.__chalkdTest.import([{ name: ${JSON.stringify(name)}, mime: ${JSON.stringify(mime)}, b64: ${JSON.stringify(bytes.toString('base64'))} }])`,
+      );
+      await pause(600);
+    };
+
+    await testImport(
+      'worksheet.pdf',
+      'application/pdf',
+      await makeWorksheetPdf(),
+    );
+    await shot('i1-pdf');
+    // Write an answer on the worksheet: ink must sit above the page.
+    const [w, h] = win.getContentSize();
+    const answer: [number, number][] = [];
+    for (let i = 0; i <= 60; i++)
+      answer.push([w / 2 - 120 + i * 4, h / 2 + 20 + Math.sin(i / 4) * 14]);
+    await drag(answer);
+    await key('1', ['control']);
+    await pause(500);
+    await shot('i2-fit-all');
+
+    await key('0', ['control']);
+    await pause(400);
+    await testImport(
+      'photo.png',
+      'image/png',
+      (await wc.capturePage()).resize({ width: 640 }).toPNG(),
+    );
+    await shot('i3-picture');
+
+    // Select it with a tap, move it, resize from a corner, delete, undo.
+    await tap('[aria-label="Select"]');
+    const [px, py] = [w / 2, h / 2 + 32];
+    await drag([[px, py]]);
+    await shot('i4-selected');
+    const steps = (
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+    ): [number, number][] =>
+      Array.from({ length: 15 }, (_, i) => [
+        x0 + ((x1 - x0) * i) / 14,
+        y0 + ((y1 - y0) * i) / 14,
+      ]);
+    await drag(steps(px, py, px - 220, py - 60));
+    await shot('i5-moved');
+    await tap('Delete');
+    await shot('i6-deleted');
+    await key('z', ['control']);
+    await shot('i7-undo');
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'drawer') {
     const [w, h] = win.getContentSize();
     const scribble = (dx: number): [number, number][] =>
@@ -255,4 +312,26 @@ export async function runSelfTest(
   await tap('Grid');
   await key('Escape');
   await shot('6-charcoal');
+}
+
+/** A two-page worksheet PDF, printed by Chromium from a hidden window. */
+async function makeWorksheetPdf(): Promise<Buffer> {
+  const html = `<!doctype html><html><body style="font-family:sans-serif">
+    <h1 style="font-size:40px">Fractions worksheet</h1>
+    <p style="font-size:22px">1. Shade 3/4 of the circle.</p>
+    <svg width="220" height="220"><circle cx="110" cy="110" r="100" fill="none" stroke="black" stroke-width="3"/>
+      <line x1="110" y1="10" x2="110" y2="210" stroke="black"/><line x1="10" y1="110" x2="210" y2="110" stroke="black"/></svg>
+    <p style="font-size:22px">2. 1/2 + 1/4 = ________</p>
+    <div style="page-break-before:always"><h1 style="font-size:40px">Page two</h1>
+    <p style="font-size:22px">3. Order from least to greatest: 2/3, 1/2, 5/6</p></div>
+  </body></html>`;
+  const win = new BrowserWindow({ show: false });
+  try {
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+    );
+    return await win.webContents.printToPDF({ pageSize: 'Letter' });
+  } finally {
+    win.destroy();
+  }
 }

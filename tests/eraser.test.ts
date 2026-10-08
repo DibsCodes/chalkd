@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AssetStore } from '../src/renderer/engine/assets';
 import { Camera } from '../src/renderer/engine/camera';
 import {
   cutPolyline,
@@ -6,7 +7,11 @@ import {
   Smoother,
 } from '../src/renderer/engine/geometry';
 import { History } from '../src/renderer/engine/history';
-import { createStroke, type StrokeItem } from '../src/renderer/engine/items';
+import {
+  createImage,
+  createStroke,
+  type StrokeItem,
+} from '../src/renderer/engine/items';
 import type { Renderer } from '../src/renderer/engine/renderer';
 import { Scene } from '../src/renderer/engine/scene';
 import { EraserTool } from '../src/renderer/engine/tools/eraser';
@@ -82,7 +87,7 @@ describe('EraserTool', () => {
       invalidateLive() {},
     } as unknown as Renderer;
     const tool = new EraserTool(
-      { scene, history, camera, renderer },
+      { scene, history, camera, renderer, assets: new AssetStore() },
       { mode, size: 10 },
     );
     const a = createStroke(line(), pen, scene.allocZ());
@@ -142,6 +147,16 @@ describe('EraserTool', () => {
     tool.up();
     expect(scene.all().map((i) => i.id)).toEqual([b.id]);
     expect(scene.has(a.id)).toBe(false);
+  });
+
+  it('leaves images alone', () => {
+    const { scene, history, tool } = setup('stroke');
+    const img = createImage('h', 40, -10, 20, 20, scene.allocZ());
+    history.commit({ added: [img], removed: [] });
+    tool.down({ x: 50, y: -30 });
+    tool.move([{ x: 50, y: 30 }]);
+    tool.up();
+    expect(scene.has(img.id)).toBe(true);
   });
 
   it('cancel restores the board exactly', () => {

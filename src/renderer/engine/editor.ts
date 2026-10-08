@@ -1,7 +1,14 @@
+import { AssetStore } from './assets';
 import { Camera, clampZoom, type Point } from './camera';
 import { History } from './history';
 import { InputRouter, type InputOptions, type InputTarget } from './input';
-import type { Background, BoardMeta, Item } from '../../shared/types';
+import type {
+  AssetData,
+  Background,
+  BoardMeta,
+  Bounds,
+  Item,
+} from '../../shared/types';
 import type { StrokeStyle } from './items';
 import { Renderer } from './renderer';
 import { Scene } from './scene';
@@ -28,6 +35,7 @@ export class Editor implements InputTarget {
   readonly camera = new Camera();
   readonly scene = new Scene();
   readonly history = new History(this.scene);
+  readonly assets = new AssetStore();
   readonly renderer: Renderer;
   readonly input: InputRouter;
   tool: Tool;
@@ -37,7 +45,12 @@ export class Editor implements InputTarget {
   private animation: number | null = null;
 
   constructor(container: HTMLElement, options: Partial<InputOptions> = {}) {
-    this.renderer = new Renderer(container, this.scene, this.camera);
+    this.renderer = new Renderer(
+      container,
+      this.scene,
+      this.camera,
+      this.assets,
+    );
     this.input = new InputRouter(this, {
       palmContactPx: null,
       tapGestures: true,
@@ -55,10 +68,11 @@ export class Editor implements InputTarget {
   }
 
   /** Replace everything with a board loaded from disk. */
-  load(board: { meta: BoardMeta; items: Item[] }): void {
+  load(board: { meta: BoardMeta; items: Item[]; assets: AssetData[] }): void {
     this.stopAnimation();
     this.tool.cancel();
     this.history.clear();
+    this.assets.load(board.assets);
     this.scene.apply({ added: board.items, removed: this.scene.all() });
     this.renderer.background = board.meta.background;
     if (board.meta.camera) {
@@ -72,7 +86,9 @@ export class Editor implements InputTarget {
   /** Switch tools between interactions (an open stroke is abandoned). */
   setTool(tool: Tool): void {
     this.tool.cancel();
+    this.tool.dispose?.();
     this.tool = tool;
+    tool.activate?.();
   }
 
   get background(): Background {
@@ -159,6 +175,11 @@ export class Editor implements InputTarget {
       this.animateTo(this.targetCenteredOn({ x: 0, y: 0 }, 1));
       return;
     }
+    this.fitBounds(b);
+  }
+
+  /** Bring a region into view (never zooming in past 100%). */
+  fitBounds(b: Bounds): void {
     const w = Math.max(1, this.renderer.width - FIT_MARGIN_PX * 2);
     const h = Math.max(1, this.renderer.height - FIT_MARGIN_PX * 2);
     const zoom = clampZoom(

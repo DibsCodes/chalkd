@@ -8,6 +8,9 @@
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
   import Drawer from './ui/Drawer.svelte';
   import EraserMenu from './ui/EraserMenu.svelte';
+  import ImportMenu from './ui/ImportMenu.svelte';
+  import SelectionBar from './ui/SelectionBar.svelte';
+  import { IMPORTABLE } from './board/import';
   import Popover from './ui/Popover.svelte';
   import PresetEditor from './ui/PresetEditor.svelte';
   import SettingsPanel from './ui/SettingsPanel.svelte';
@@ -17,7 +20,8 @@
 
   type OpenPopover =
     | { type: 'preset'; kind: PresetKind; id: string; anchor: DOMRect }
-    | { type: 'eraser'; anchor: DOMRect };
+    | { type: 'eraser'; anchor: DOMRect }
+    | { type: 'import'; anchor: DOMRect };
 
   let appEl: HTMLDivElement;
   let boardEl: HTMLDivElement;
@@ -42,6 +46,19 @@
   async function start(editor: ReturnType<typeof board.attach>) {
     await settings.load();
     ready = true;
+    if (new URLSearchParams(location.search).has('selftest')) {
+      // Lets the self-test import generated files without a file dialog.
+      (window as unknown as Record<string, unknown>).__chalkdTest = {
+        import: (files: { name: string; mime: string; b64: string }[]) =>
+          board.import(
+            files.map((f) => ({
+              name: f.name,
+              mime: f.mime,
+              bytes: Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0)),
+            })),
+          ),
+      };
+    }
     if (new URLSearchParams(location.search).has('bench')) {
       await runBench(editor);
       return;
@@ -65,6 +82,27 @@
     else document.documentElement.dataset.theme = theme;
   });
 
+  /** Files dragged in from the file manager. */
+  async function onDrop(e: DragEvent) {
+    e.preventDefault();
+    const files = [...(e.dataTransfer?.files ?? [])].filter((f) => IMPORTABLE.test(f.type));
+    if (!files.length) return;
+    await board.import(
+      await Promise.all(
+        files.map(async (f) => ({
+          name: f.name,
+          mime: f.type,
+          bytes: new Uint8Array(await f.arrayBuffer()),
+        })),
+      ),
+    );
+  }
+
+  async function importFromFile() {
+    popover = null;
+    await board.import(await window.chalkd.import.chooseFiles());
+  }
+
   async function clearBoard() {
     popover = null;
     const ok = await dialogs.ask({
@@ -77,10 +115,20 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (!e.ctrlKey || popover || settingsOpen || drawerOpen || dialogs.confirm) return;
+    if (popover || settingsOpen || drawerOpen || dialogs.confirm) return;
+    if (e.target instanceof HTMLInputElement) return;
     const key = e.key.toLowerCase();
     const editor = board.editor;
-    if (key === 'z' && e.shiftKey) editor?.redo();
+    if (!e.ctrlKey) {
+      if ((key === 'delete' || key === 'backspace') && board.hasSelection) board.deleteSelection();
+      else if (key === 'escape') board.clearSelection();
+      else return;
+      e.preventDefault();
+      return;
+    }
+    if (key === 'v') void board.paste();
+    else if (key === 'a' && settings.value.tool.type === 'select') board.selectAll();
+    else if (key === 'z' && e.shiftKey) editor?.redo();
     else if (key === 'z') editor?.undo();
     else if (key === 'y') editor?.redo();
     else if (key === '0') editor?.zoomToActual();
@@ -90,7 +138,12 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} onbeforeunload={() => settings.flush()} />
+<svelte:window
+  onkeydown={onKey}
+  onbeforeunload={() => settings.flush()}
+  ondragover={(e) => e.preventDefault()}
+  ondrop={onDrop}
+/>
 
 <div class="app" bind:this={appEl}>
   <Toolbar
@@ -101,12 +154,16 @@
     onEditPreset={(kind, id, el) =>
       (popover = { type: 'preset', kind, id, anchor: el.getBoundingClientRect() })}
     onEraserMenu={(el) => (popover = { type: 'eraser', anchor: el.getBoundingClientRect() })}
+    onImport={(el) => (popover = { type: 'import', anchor: el.getBoundingClientRect() })}
     onSettings={() => {
       popover = null;
       settingsOpen = true;
     }}
   />
   <div class="board" bind:this={boardEl}></div>
+  <div class="board-overlay">
+    <SelectionBar />
+  </div>
   <ZoomPill />
 
   {#if editing && popover}
@@ -136,6 +193,16 @@
         onclear={clearBoard}
       />
     </Popover>
+  {:else if popover?.type === 'import'}
+    <Popover anchor={popover.anchor} label="Import" width={330} onclose={() => (popover = null)}>
+      <ImportMenu
+        onfile={importFromFile}
+        onpaste={() => {
+          popover = null;
+          void board.paste();
+        }}
+      />
+    </Popover>
   {/if}
 
   {#if drawerOpen}
@@ -151,6 +218,18 @@
   .app {
     position: fixed;
     inset: 0;
+  }
+  .board-overlay {
+    position: absolute;
+    top: var(--toolbar-h);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .board-overlay > :global(*) {
+    pointer-events: auto;
   }
   .board {
     position: absolute;

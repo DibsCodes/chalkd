@@ -6,6 +6,7 @@ import {
   SAVE_DELAY_MS,
   type SaveBackend,
 } from '../src/renderer/board/autosave';
+import { AssetStore } from '../src/renderer/engine/assets';
 import { Camera } from '../src/renderer/engine/camera';
 import type { Editor } from '../src/renderer/engine/editor';
 import { History } from '../src/renderer/engine/history';
@@ -23,6 +24,7 @@ function fakeEditor() {
   const editor = {
     scene,
     camera,
+    assets: new AssetStore(),
     history: new History(scene),
     onCameraChange(fn: () => void) {
       listeners.add(fn);
@@ -135,6 +137,21 @@ describe('Autosave', () => {
     const last = backend.writes.at(-1)!;
     expect(last.upserts).toEqual([]);
     expect(last.deletes).toEqual([a.id]);
+  });
+
+  it('writes new image data with the items, and retries it after a failure', async () => {
+    const asset = {
+      hash: 'abc',
+      mime: 'image/png',
+      bytes: new Uint8Array([1]),
+    };
+    editor.assets.add(asset);
+    backend.failNext = true;
+    editor.history.commit({ added: [stroke()], removed: [] });
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
+    expect(backend.writes).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+    expect(backend.writes[0].assets?.map((a) => a.hash)).toEqual(['abc']);
   });
 
   it('flushSync writes immediately on close', () => {

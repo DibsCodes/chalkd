@@ -1,7 +1,7 @@
 import type { EraserSettings } from '../../../shared/types';
 import type { Point } from '../camera';
 import { cutPolyline, polylineHits } from '../geometry';
-import { createStroke, type Item } from '../items';
+import { createStroke, isStroke, type Item } from '../items';
 import type { Tool, ToolContext } from './tool';
 
 /**
@@ -71,7 +71,8 @@ export class EraserTool implements Tool {
     };
     const gone: Item[] = [];
     const pieces: Item[] = [];
-    for (const item of scene.query(area)) {
+    // Images are only removed with Select (PLAN.md › Tools › Eraser).
+    for (const item of scene.query(area).filter(isStroke)) {
       // Measure from the ink's edge, not its centerline.
       const reach = r + item.width / 2;
       const ax = a.x - item.origin.x;

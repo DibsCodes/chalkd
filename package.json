@@ -23,7 +23,8 @@
     "spike": "CHALKD_SPIKE=1 electron-forge start",
     "bench": "CHALKD_BENCH=1 electron-forge start",
     "test": "vitest run",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "postinstall": "node scripts/copy-pdfjs.mjs"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
@@ -46,6 +47,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
+    "pdfjs-dist": "^6.4.299",
     "rbush": "^4.0.1"
   }
 }

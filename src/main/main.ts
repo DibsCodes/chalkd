@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { AppSettings, BoardChanges } from '../shared/types';
 import { BoardSession } from './board-session';
 import { Library } from './library';
+import { registerImportIpc } from './import-ipc';
 import { registerLibraryIpc } from './library-ipc';
 import { runSelfTest } from './selftest';
 import { SettingsStore } from './settings';
@@ -64,7 +65,11 @@ const createWindow = () => {
   });
 
   const page = process.env.CHALKD_SPIKE ? 'spike.html' : 'index.html';
-  const search = process.env.CHALKD_BENCH ? 'bench=1' : '';
+  const search = process.env.CHALKD_BENCH
+    ? 'bench=1'
+    : process.env.CHALKD_SELFTEST
+      ? 'selftest=1'
+      : '';
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/${page}?${search}`);
   } else {
@@ -142,6 +147,7 @@ registerLibraryIpc(
   () => library,
   () => session,
 );
+registerImportIpc();
 
 ipcMain.handle('board:write', (_event, changes: BoardChanges) => {
   session.write(changes);

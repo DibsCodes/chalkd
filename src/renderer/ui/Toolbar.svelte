@@ -9,15 +9,18 @@
     onMenu,
     onEditPreset,
     onEraserMenu,
+    onImport,
     onSettings,
   }: {
     onMenu: () => void;
+    onImport: (anchor: HTMLElement) => void;
     onEditPreset: (kind: PresetKind, id: string, anchor: HTMLElement) => void;
     onEraserMenu: (anchor: HTMLElement) => void;
     onSettings: () => void;
   } = $props();
 
   const eraserOn = $derived(settings.value.tool.type === 'eraser');
+  const selectOn = $derived(settings.value.tool.type === 'select');
 
   /** Tap selects; tapping the selected one (or long-pressing) edits it. */
   function presetTap(kind: PresetKind, id: string, el: HTMLElement) {
@@ -111,6 +114,16 @@
     >
       <Icon name="eraser" />
     </button>
+    <button
+      type="button"
+      class="tool"
+      class:selected={selectOn}
+      aria-label="Select"
+      aria-pressed={selectOn}
+      onclick={() => settings.selectTool({ type: 'select' })}
+    >
+      <Icon name="lasso" />
+    </button>
   </div>
 
   <div class="divider"></div>
@@ -131,6 +144,16 @@
     onclick={() => board.editor?.redo()}
   >
     <Icon name="redo" />
+  </button>
+  <div class="divider"></div>
+  <button
+    type="button"
+    class="tool"
+    aria-label="Import"
+    disabled={board.importing}
+    onclick={(e) => onImport(e.currentTarget)}
+  >
+    <Icon name="image-plus" />
   </button>
 
   <div class="spacer"></div>

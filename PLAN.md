@@ -122,7 +122,7 @@ The Import button opens a popover:
   - PDFs: each page is rendered with `pdf.js` at 2× and placed top to bottom with a gap, starting at the center of the view.
 - **Paste** (also Ctrl+V): drops the image currently on the clipboard.
 
-Imported bytes are copied into the board file, so deleting the original later is safe.
+Imported bytes are copied into the board file, so deleting the original later is safe. Each picture is stored once per board (keyed by its SHA-256), even if it's used several times. Pictures nothing uses any more are cleaned out when the board is opened. Photos longer than 3000 px are scaled down; SVGs are converted to ordinary pictures. pdf.js loads only when a PDF arrives, and its font and decoder files are copied into `public/pdfjs/` at install time.
 
 ## Export
 
