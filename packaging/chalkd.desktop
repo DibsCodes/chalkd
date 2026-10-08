@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Chalkd
+GenericName=Whiteboard
+Comment=A touch-first infinite whiteboard for teachers
+Exec=chalkd
+Icon=chalkd
+Terminal=false
+Categories=Education;
+Keywords=whiteboard;chalkboard;draw;teach;
+StartupWMClass=chalkd

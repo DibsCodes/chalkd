@@ -1,0 +1,29 @@
+# Adds the "Chalkd" printer: anything printed to it opens as a new board.
+
+add_printer() {
+  if ! command -v lpadmin >/dev/null 2>&1; then
+    return
+  fi
+  if ! lpstat -r 2>/dev/null | grep -q 'scheduler is running'; then
+    echo ':: CUPS is not running, so the Chalkd printer was not added.'
+    echo '   Start it (sudo systemctl enable --now cups) and reinstall chalkd.'
+    return
+  fi
+  # lpadmin warns that printer drivers are deprecated; that's expected.
+  lpadmin -p Chalkd -E -v chalkd:/ -P /usr/share/ppd/chalkd/chalkd.ppd \
+    -D 'Chalkd whiteboard' -L 'Opens as a new board in Chalkd' \
+    -o printer-is-shared=false 2>/dev/null &&
+    echo ':: Added the Chalkd printer. Print to it from any app to open the pages as a board.'
+}
+
+post_install() {
+  add_printer
+}
+
+post_upgrade() {
+  add_printer
+}
+
+pre_remove() {
+  lpadmin -x Chalkd 2>/dev/null || true
+}

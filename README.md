@@ -1,13 +1,26 @@
 # Chalkd
 
+<img src="packaging/icons/chalkd-256.png" alt="Chalkd icon" width="128">
+
 A touch-first infinite whiteboard for teachers, for Linux. Free and open source (GPL-3.0-or-later).
 
 See [PLAN.md](PLAN.md) for the design and build phases.
 
-## Status
+## Install
 
-**Phase 6 (export).** Everything from Phase 5, plus export. Packaging hasn't started yet; run Chalkd from source.
+On Arch Linux or Omarchy, download `chalkd-1.0.0-1-x86_64.pkg.tar.zst` from the [latest release](https://github.com/DibsCodes/chalkd/releases/latest) and install it:
 
+```sh
+sudo pacman -U chalkd-1.0.0-1-x86_64.pkg.tar.zst
+```
+
+Chalkd then shows up in the app launcher. If CUPS is running, the install also adds the **Chalkd** printer. If you added the printer from a source checkout before, run `npm run printer:uninstall` first, or pacman will refuse to overwrite its files.
+
+To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy `PKGBUILD` and `chalkd.install` into an empty folder and run `makepkg -si`.
+
+## Features
+
+- **Touch:** one finger uses the current tool. Two or three fingers move the board. Four fingers (two on each hand) also zoom: move your hands apart to zoom in, together to zoom out.
 - **Pens and highlighters:** as many as you like. Tap one to use it. Tap it again (or long-press) to change its color or thickness, or to delete it. **+** adds a copy.
 - **Highlighter:** sits underneath pen ink, so it never dulls your writing.
 - **Eraser:** rubs out just what you touch, or whole strokes. Circle some ink and tap inside the circle to erase everything in it. Long-press it for size and Clear Board, which can be undone.
@@ -24,7 +37,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
   - Drag the selection to move it; drag a corner to resize it.
   - **Delete** sits above the selection (or press Delete).
 - **Import (picture icon):** pictures (PNG, JPEG, WebP, GIF, SVG) and PDFs from a file. PDF pages are placed top to bottom, ready to write on. You can also paste a picture (Ctrl+V) or drag files onto the board. Pictures sit underneath ink and highlighter.
-- **Print to Chalkd:** after a one-time `npm run printer:install` (asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. Anything printed while Chalkd is closed opens the next time you start it. `npm run printer:uninstall` removes the printer.
+- **Print to Chalkd:** once the printer is added (the package does it; from source, run `npm run printer:install`, which asks for your password), every app's print dialog has a **Chalkd** printer. Printing to it opens the document as a new board, named after it, in the notebook you're working in. Anything printed while Chalkd is closed opens the next time you start it. From source, `npm run printer:uninstall` removes the printer; uninstalling the package does it for you.
 - **Export (share icon, or Export… on a board in the drawer):**
   - PDF as one page sized to fit everything, or as printable Letter/A4 pages at real size. The orientation is chosen to use fewer pages.
   - PNG of the whole board or of what's on screen, at 2×.
@@ -35,7 +48,7 @@ See [PLAN.md](PLAN.md) for the design and build phases.
   - Long-press an item for Rename, Move to…, New board here (notebooks), and Delete. Deleting moves it to the system trash.
   - Long-press and drag to reorder, or drop onto a notebook to move something into it.
 
-## Running
+## Running from source
 
 ```sh
 npm install

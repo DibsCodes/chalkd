@@ -5,3 +5,6 @@ dist/
 *.log
 .DS_Store
 public/pdfjs/
+packaging/arch/*
+!packaging/arch/PKGBUILD
+!packaging/arch/chalkd.install

@@ -1,0 +1,47 @@
+# Maintainer: Dibs <jdibello89@gmail.com>
+pkgname=chalkd
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='A touch-first infinite whiteboard for teachers'
+arch=('x86_64')
+url='https://github.com/DibsCodes/chalkd'
+license=('GPL-3.0-or-later')
+depends=('alsa-lib' 'gtk3' 'nss')
+makedepends=('git' 'nodejs' 'npm')
+optdepends=('cups: the Chalkd printer, which opens printouts as boards')
+install=chalkd.install
+# Electron ships its own prebuilt binaries.
+options=('!strip' '!debug')
+source=("git+https://github.com/DibsCodes/chalkd.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+prepare() {
+  cd chalkd
+  npm ci --cache "$srcdir/npm-cache"
+}
+
+build() {
+  cd chalkd
+  npm run package
+}
+
+package() {
+  cd chalkd
+  install -d "$pkgdir/usr/lib/chalkd" "$pkgdir/usr/bin"
+  # Copy the contents, not the folder: forge creates it as 0700.
+  cp -a out/Chalkd-linux-x64/* "$pkgdir/usr/lib/chalkd/"
+  ln -s /usr/lib/chalkd/chalkd "$pkgdir/usr/bin/chalkd"
+
+  install -Dm644 packaging/chalkd.desktop "$pkgdir/usr/share/applications/chalkd.desktop"
+  for n in 16 32 48 64 128 256 512; do
+    install -Dm644 "packaging/icons/chalkd-$n.png" \
+      "$pkgdir/usr/share/icons/hicolor/${n}x${n}/apps/chalkd.png"
+  done
+
+  # Root-owned and not world-executable, so CUPS runs it as root (it then
+  # writes each job as the user who printed it).
+  install -Dm700 scripts/printer/chalkd-backend "$pkgdir/usr/lib/cups/backend/chalkd"
+  install -Dm644 scripts/printer/chalkd.ppd "$pkgdir/usr/share/ppd/chalkd/chalkd.ppd"
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
