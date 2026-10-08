@@ -290,6 +290,48 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'reorder-touch') {
+    // Three boards in one notebook, then reorder them with a finger.
+    for (let i = 0; i < 2; i++) {
+      await tap('[aria-label="Notebooks"]');
+      await tap('Board');
+      await pause(300);
+    }
+    await tap('[aria-label="Notebooks"]');
+    await pause(300);
+    const rows = () =>
+      wc.executeJavaScript(
+        `[...document.querySelectorAll('[role=treeitem]')].map((e) => e.textContent.trim())`,
+      ) as Promise<string[]>;
+    const log: Record<string, unknown> = { before: await rows() };
+    wc.debugger.attach('1.3');
+    const touch = (type: string, points: [number, number][]) =>
+      wc.debugger.sendCommand('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: points.map(([x, y], id) => ({ x, y, id })),
+      });
+    const [x0, y0] = await center('row:1');
+    const [, y3] = await center('row:3');
+    await touch('touchStart', [[x0, y0]]);
+    await pause(500);
+    const y1 = y3 + 14; // lower half of the last board: drop after it
+    for (let i = 1; i <= 20; i++) {
+      await touch('touchMove', [[x0, y0 + ((y1 - y0) * i) / 20]]);
+      await pause(16);
+    }
+    await shot('r-dragging');
+    await touch('touchEnd', []);
+    await pause(500);
+    log.after = await rows();
+    await shot('r-dropped');
+    wc.debugger.detach();
+    writeFileSync(
+      path.join(outDir, 'reorder.json'),
+      JSON.stringify(log, null, 2),
+    );
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'coast') {
     const [w, h] = win.getContentSize();
     const cx = w / 2;
