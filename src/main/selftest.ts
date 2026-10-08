@@ -332,15 +332,24 @@ export async function runSelfTest(
 
     await tap('[aria-label="Notebooks"]');
     await tap('row:2', 700);
+    await tap('Duplicate'); // opens the copy and starts renaming it
+    await pause(400);
+    await shot('d9-duplicated');
+    await type('Period 2');
+    await key('Enter');
+    await pause(300);
+    await shot('d10-copy-renamed');
+
+    await tap('row:2', 700);
     await tap('Delete');
-    await shot('d9-confirm');
+    await shot('d11-confirm');
     await tap('Delete board');
     await pause(400);
     // The sandbox lives on tmpfs, which has no trash: expect the fallback.
-    await shot('d10-no-trash');
+    await shot('d12-no-trash');
     await tap('Delete permanently');
     await pause(400);
-    await shot('d11-deleted');
+    await shot('d13-deleted');
     return;
   }
 

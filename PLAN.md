@@ -111,7 +111,7 @@ A free, open-source (GPL-3.0) touch-first whiteboard for Linux, built for one te
 
 - Shows the root folder as a tree. Notebooks expand and collapse; the current board is highlighted.
 - Top buttons **+ Board** and **+ Notebook** create the item at the end of the notebook holding the current board, auto-named, and open it right away.
-- Long-press then release opens a menu: Rename, Move to…, Export (boards only), Delete.
+- Long-press then release opens a menu: Rename, Duplicate (boards only), Move to…, Export (boards only), Delete. Duplicate copies the board to "‹name› copy" just below it, opens the copy, and offers to rename it.
 - Long-press then move starts a drag. Drop between rows to reorder; drop onto a notebook to move the item inside it (the notebook expands while you hover).
 - The drawer re-scans the disk each time it opens, so changes made outside the app show up.
 

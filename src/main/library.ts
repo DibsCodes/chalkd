@@ -1,4 +1,6 @@
 import {
+  constants,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -158,6 +160,33 @@ export class Library {
     order.splice(at < 0 ? order.length : at, 0, finalName);
     this.writeOrder(parent, order);
     return path.join(parent, finalName);
+  }
+
+  /**
+   * Copy a board to "<name> copy", placed just after the original. The board
+   * must be closed so its last save is in the file. Returns the copy's path.
+   */
+  duplicate(rel: string): string {
+    if (!rel.endsWith(BOARD_EXT))
+      throw new Error('Only boards can be duplicated');
+    const dir = parentOf(rel);
+    const name = path.basename(rel);
+    const base = this.uniqueName(
+      dir,
+      sanitize(`${path.basename(rel, BOARD_EXT)} copy`),
+      BOARD_EXT,
+    );
+    const file = base + BOARD_EXT;
+    copyFileSync(
+      this.abs(rel),
+      this.abs(path.join(dir, file)),
+      constants.COPYFILE_EXCL,
+    );
+    const order = this.children(dir).filter((n) => n !== file);
+    const at = order.indexOf(name);
+    order.splice(at < 0 ? order.length : at + 1, 0, file);
+    this.writeOrder(dir, order);
+    return path.join(dir, file);
   }
 
   /** Remove via `trash` (the system trash in the app) and fix up the order. */

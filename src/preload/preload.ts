@@ -26,6 +26,9 @@ const api = {
       ipcRenderer.invoke('library:create-board', notebook),
     createNotebook: (parent: string): Promise<BoardData> =>
       ipcRenderer.invoke('library:create-notebook', parent),
+    /** Copies a board next to itself and opens the copy. */
+    duplicate: (rel: string): Promise<BoardData> =>
+      ipcRenderer.invoke('library:duplicate', rel),
     rename: (rel: string, name: string): Promise<LibraryState> =>
       ipcRenderer.invoke('library:rename', rel, name),
     /** Move into `parent`, just before sibling `before` (or at the end). */

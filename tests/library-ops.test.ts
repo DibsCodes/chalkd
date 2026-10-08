@@ -106,6 +106,56 @@ describe('move', () => {
   });
 });
 
+describe('duplicate', () => {
+  it('copies a board just after the original, with its contents', () => {
+    const { math } = sample();
+    const a = path.join(math, 'A.chalkd');
+    const settings = new SettingsStore(path.join(dir, '.config'));
+    const session = new BoardSession(lib, settings);
+    session.open(a);
+    session.write({
+      upserts: [
+        createStroke(
+          [0, 0, 5, 5],
+          { kind: 'pen', color: '#000', width: 2, opacity: 1 },
+          1,
+        ),
+      ],
+      deletes: [],
+    });
+    session.close();
+
+    expect(lib.duplicate(a)).toBe(path.join(math, 'A copy.chalkd'));
+    expect(names(math)).toEqual([
+      'A.chalkd',
+      'A copy.chalkd',
+      'B.chalkd',
+      'C.chalkd',
+      'Unit',
+    ]);
+    const copy = new BoardSession(lib, settings);
+    expect(copy.open(path.join(math, 'A copy.chalkd')).items).toHaveLength(1);
+    copy.close();
+  });
+
+  it('numbers further copies', () => {
+    const { math } = sample();
+    const a = path.join(math, 'A.chalkd');
+    lib.duplicate(a);
+    expect(lib.duplicate(a)).toBe(path.join(math, 'A copy (2).chalkd'));
+    expect(names(math).slice(0, 3)).toEqual([
+      'A.chalkd',
+      'A copy (2).chalkd',
+      'A copy.chalkd',
+    ]);
+  });
+
+  it('refuses notebooks', () => {
+    const { unit } = sample();
+    expect(() => lib.duplicate(unit)).toThrow();
+  });
+});
+
 describe('remove and ensure', () => {
   it('removes and fixes the order', async () => {
     const { math } = sample();

@@ -41,6 +41,16 @@ export function registerLibraryIpc(
     return getSession().open(library.createBoard(notebook));
   });
 
+  ipcMain.handle('library:duplicate', async (_e, rel: string) => {
+    const session = getSession();
+    // Closed while copying, so the copy has the latest save.
+    const copy = await session.around(
+      () => getLibrary().duplicate(rel),
+      (current) => current,
+    );
+    return session.open(copy);
+  });
+
   ipcMain.handle('library:rename', async (_e, rel: string, name: string) => {
     const to = await getSession().around(
       () => getLibrary().rename(rel, name),

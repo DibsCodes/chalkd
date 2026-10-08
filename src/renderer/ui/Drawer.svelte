@@ -218,6 +218,24 @@
     }
   }
 
+  async function duplicate(path: string) {
+    if (busy) return;
+    busy = true;
+    try {
+      await board.pause();
+      const data = await window.chalkd.library.duplicate(path);
+      await board.show(data);
+      apply(await window.chalkd.library.tree());
+      // Offer to name the copy right away.
+      startRename(find(tree, data.path)!);
+    } catch (err) {
+      showToast(`Couldn't duplicate the board: ${errorMessage(err)}`);
+    } finally {
+      board.resume();
+      busy = false;
+    }
+  }
+
   function startRename(node: TreeNode) {
     menu = null;
     renaming = node.path;
@@ -568,7 +586,7 @@
       {#if loaded}<p class="hint">No notebooks yet.</p>{/if}
     {/each}
   </div>
-  <p class="footer-hint">Long-press an item to rename, move, or delete it. Long-press and drag to reorder.</p>
+  <p class="footer-hint">Long-press an item to rename, duplicate, move, or delete it. Long-press and drag to reorder.</p>
 </nav>
 
 {#if drag}
@@ -607,6 +625,16 @@
           }}
         >
           <Icon name="share" size={20} /> Export…
+        </button>
+        <button
+          type="button"
+          onclick={() => {
+            const board = node.path; // read before `menu` (and so `node`) is cleared
+            menu = null;
+            void duplicate(board);
+          }}
+        >
+          <Icon name="copy" size={20} /> Duplicate
         </button>
       {/if}
       <button
