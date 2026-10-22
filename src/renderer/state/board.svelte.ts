@@ -109,7 +109,11 @@ class BoardController {
   applySettings(s: AppSettings): void {
     const editor = this.editor;
     if (!editor) return;
-    editor.input.options = { palmContactPx: s.palmContactPx };
+    editor.input.options = {
+      palmContactPx: s.palmContactPx,
+      eraseFingers: s.eraseFingers,
+    };
+    editor.eraserSettings = { ...s.eraser };
     const tool = buildTool(editor, s);
     editor.setTool(tool);
     this.selectTool = tool instanceof SelectTool ? tool : null;

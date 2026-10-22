@@ -26,6 +26,21 @@ class FakeTarget implements InputTarget {
   toolCancel() {
     this.log.push('cancel');
   }
+  erases: Point[] = [];
+  eraseDown(p: Point) {
+    this.erases.push(p);
+    this.log.push('eraseDown');
+  }
+  eraseMove(points: Point[]) {
+    this.erases.push(...points);
+    if (this.log.at(-1) !== 'eraseMove') this.log.push('eraseMove');
+  }
+  eraseUp() {
+    this.log.push('eraseUp');
+  }
+  eraseCancel() {
+    this.log.push('eraseCancel');
+  }
   cameraChanged() {}
   gestureStart() {
     this.log.push('gestureStart');
@@ -45,7 +60,7 @@ function setup(options: Partial<InputOptions> = {}) {
   clock = 0;
   router = new InputRouter(
     target,
-    { palmContactPx: null, ...options },
+    { palmContactPx: null, eraseFingers: 3, ...options },
     () => clock,
   );
 }
@@ -178,6 +193,155 @@ describe('two fingers', () => {
   });
 });
 
+describe('three fingers', () => {
+  /** Three fingers around (200, 100). */
+  function threeDown(lastAt = 40) {
+    down(1, 180, 90);
+    clock = 20;
+    down(2, 200, 110);
+    clock = lastAt;
+    down(3, 220, 100);
+  }
+
+  it('erase under the middle of the fingers', () => {
+    threeDown();
+    expect(target.log).toEqual([
+      'down',
+      'cancel',
+      'gestureStart',
+      'gestureEnd',
+      'eraseDown',
+    ]);
+    clock = 80;
+    move(1, 230, 90);
+    move(2, 250, 110);
+    move(3, 270, 100);
+    clock = 300;
+    for (const id of [1, 2, 3]) up(id, 0, 0);
+    expect(target.log.slice(-2)).toEqual(['eraseMove', 'eraseUp']);
+    expect(target.erases[0].x).toBeCloseTo(200);
+    expect(target.erases.at(-1)!.x).toBeCloseTo(250);
+    // Erasing doesn't pan.
+    expect(target.camera.x).toBe(0);
+  });
+
+  it('erase in world coordinates', () => {
+    target.camera.x = 100;
+    target.camera.zoom = 2;
+    threeDown();
+    expect(target.erases[0].x).toBeCloseTo(200);
+  });
+
+  it('keep the eraser in place when a finger lifts', () => {
+    threeDown();
+    up(3, 220, 100);
+    move(1, 180, 90);
+    move(2, 200, 110);
+    expect(target.erases.at(-1)!.x).toBeCloseTo(200);
+    move(1, 190, 90);
+    move(2, 210, 110);
+    expect(target.erases.at(-1)!.x).toBeCloseTo(210);
+    expect(target.log).not.toContain('eraseUp');
+  });
+
+  it('undo the erasing when the system cancels a touch', () => {
+    threeDown();
+    move(1, 230, 90);
+    router.pointerUp(ev(2, 200, 110), true);
+    for (const id of [1, 3]) up(id, 0, 0);
+    expect(target.log.slice(-1)).toEqual(['eraseCancel']);
+  });
+
+  it('pan if the third finger lands late', () => {
+    threeDown(400);
+    expect(target.log).not.toContain('eraseDown');
+    move(3, 250, 100);
+    expect(target.camera.x).toBeLessThan(0);
+  });
+
+  it('pan if two fingers were already panning', () => {
+    down(1, 180, 90);
+    clock = 20;
+    down(2, 200, 110);
+    clock = 30;
+    move(1, 230, 90);
+    move(2, 250, 110);
+    down(3, 220, 100);
+    expect(target.log).not.toContain('eraseDown');
+  });
+});
+
+describe('erasing with two fingers', () => {
+  beforeEach(() => setup({ eraseFingers: 2 }));
+
+  it('two fingers erase', () => {
+    down(1, 100, 100);
+    clock = 30;
+    down(2, 120, 100);
+    clock = 80;
+    move(1, 150, 100);
+    move(2, 170, 100);
+    clock = 300;
+    up(1, 150, 100);
+    up(2, 170, 100);
+    expect(target.log).toEqual([
+      'down',
+      'cancel',
+      'eraseDown',
+      'eraseMove',
+      'eraseUp',
+    ]);
+    expect(target.erases[0].x).toBeCloseTo(110);
+    expect(target.erases.at(-1)!.x).toBeCloseTo(160);
+    expect(target.camera.x).toBe(0);
+  });
+
+  it('three fingers pan', () => {
+    down(1, 100, 100);
+    clock = 20;
+    down(2, 120, 100);
+    clock = 40;
+    down(3, 140, 100);
+    expect(target.log).toEqual([
+      'down',
+      'cancel',
+      'eraseDown',
+      'eraseCancel',
+      'gestureStart',
+    ]);
+    move(1, 150, 100);
+    move(2, 170, 100);
+    move(3, 190, 100);
+    expect(target.camera.x).toBeCloseTo(-50);
+  });
+
+  it('four fingers still zoom', () => {
+    down(1, 200, 90);
+    clock = 10;
+    down(2, 200, 110);
+    clock = 30;
+    down(3, 400, 90);
+    down(4, 400, 110);
+    clock = 80;
+    move(1, 100, 90);
+    move(2, 100, 110);
+    move(3, 500, 90);
+    move(4, 500, 110);
+    expect(target.camera.zoom).toBeCloseTo(2, 1);
+  });
+
+  it('a late third finger keeps erasing', () => {
+    down(1, 100, 100);
+    clock = 20;
+    down(2, 120, 100);
+    clock = 400;
+    down(3, 140, 100);
+    move(3, 200, 100);
+    expect(target.log).not.toContain('eraseCancel');
+    expect(target.camera.x).toBe(0);
+  });
+});
+
 describe('four fingers', () => {
   // Two pairs of fingers, one per hand, 200 px apart around (300, 100).
   function fourDown() {
@@ -188,6 +352,19 @@ describe('four fingers', () => {
     down(3, 400, 90);
     down(4, 400, 110);
   }
+
+  it('cancel the eraser the third finger started', () => {
+    fourDown();
+    expect(target.log).toEqual([
+      'down',
+      'cancel',
+      'gestureStart',
+      'gestureEnd',
+      'eraseDown',
+      'eraseCancel',
+      'gestureStart',
+    ]);
+  });
 
   it('pinch zooms when the two pairs move apart', () => {
     fourDown();

@@ -38,6 +38,8 @@ export class EraserTool implements Tool {
   /** A closed loop waiting for a tap inside it. */
   private loop: number[] | null = null;
   private loopTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Replaces clearing the loop when its wait runs out. */
+  onLoopExpired: (() => void) | null = null;
   private cursor: Point | null = null;
   /** Items that existed before this gesture and are now gone. */
   private removed = new Map<string, Item>();
@@ -116,9 +118,19 @@ export class EraserTool implements Tool {
     this.finish();
   }
 
+  /** Show a waiting loop again, after something else drew over the board. */
+  activate(): void {
+    if (this.loop) this.ctx.renderer.setLive((g) => this.drawLive(g));
+  }
+
   dispose(): void {
     this.clearLoop();
     this.ctx.renderer.setLive(null);
+  }
+
+  /** Give a waiting loop another full wait. */
+  waitForTap(): void {
+    if (this.loop) this.startLoopTimer();
   }
 
   /** Whether a loop is waiting for its tap. */
@@ -178,7 +190,11 @@ export class EraserTool implements Tool {
 
   private startLoopTimer(): void {
     this.stopLoopTimer();
-    this.loopTimer = setTimeout(() => this.clearLoop(), LOOP_WAIT_MS);
+    this.loopTimer = setTimeout(() => {
+      this.loopTimer = null;
+      if (this.onLoopExpired) this.onLoopExpired();
+      else this.clearLoop();
+    }, LOOP_WAIT_MS);
   }
 
   private stopLoopTimer(): void {

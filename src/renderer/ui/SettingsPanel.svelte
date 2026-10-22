@@ -27,6 +27,10 @@
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
   ];
+  const ERASE_FINGERS: { value: 2 | 3; label: string }[] = [
+    { value: 3, label: 'Three fingers' },
+    { value: 2, label: 'Two fingers' },
+  ];
   const TOOLBAR_POSITIONS: { value: ToolbarPosition; label: string }[] = [
     { value: 'top', label: 'Top' },
     { value: 'bottom', label: 'Bottom' },
@@ -164,6 +168,21 @@
         />
       </label>
     {/if}
+    <div class="field-label erase-fingers">Erase with</div>
+    <div class="segmented" role="radiogroup" aria-label="Erase with">
+      {#each ERASE_FINGERS as f (f.value)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={settings.value.eraseFingers === f.value}
+          class:on={settings.value.eraseFingers === f.value}
+          onclick={() => settings.update({ eraseFingers: f.value })}>{f.label}</button
+        >
+      {/each}
+    </div>
+    <span class="hint">
+      {settings.value.eraseFingers === 3 ? 'Two' : 'Three'} fingers move the board. Four fingers zoom.
+    </span>
   </section>
 
   <section>
@@ -273,7 +292,8 @@
     font-weight: 600;
     margin-bottom: 8px;
   }
-  .toolbar-position {
+  .toolbar-position,
+  .erase-fingers {
     margin-top: 16px;
   }
   .row {

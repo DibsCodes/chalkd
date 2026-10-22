@@ -10,6 +10,8 @@ const FLING_WINDOW_MS = 80;
 const FLING_STALE_MS = 50;
 /** Fingers needed to zoom; fewer only pan. Fingers beyond this are ignored. */
 export const PINCH_FINGERS = 4;
+/** Three erasing fingers must all land within this long of the first. */
+export const ERASE_WINDOW_MS = 250;
 
 /** What the router drives. Tool points are in world coordinates. */
 export interface InputTarget {
@@ -18,6 +20,11 @@ export interface InputTarget {
   toolMove(points: Point[]): void;
   toolUp(): void;
   toolCancel(): void;
+  /** Erasing with two or three fingers, whatever the tool; points are in world coordinates. */
+  eraseDown(p: Point): void;
+  eraseMove(points: Point[]): void;
+  eraseUp(): void;
+  eraseCancel(): void;
   cameraChanged(): void;
   gestureStart(): void;
   /** `velocity`: how fast a pan was moving when released, in screen px/ms. */
@@ -27,6 +34,8 @@ export interface InputTarget {
 export interface InputOptions {
   /** Ignore touches whose reported contact is wider than this (CSS px). */
   palmContactPx: number | null;
+  /** How many fingers erase; the other of two and three pans. */
+  eraseFingers: 2 | 3;
 }
 
 /** The subset of PointerEvent the router reads; lets tests feed fakes. */
@@ -51,11 +60,20 @@ interface Track {
 /** One touch interaction: from the first finger down to the last finger up. */
 interface Sequence {
   startAt: number;
-  mode: 'draw' | 'gesture';
+  mode: 'draw' | 'gesture' | 'erase';
   drawId: number;
   /** The tool has an open stroke that still needs toolUp/toolCancel. */
   toolOpen: boolean;
   drawLifted: boolean;
+  /** Erasing: still needs eraseUp/eraseCancel. */
+  eraseOpen: boolean;
+  eraseAt: number;
+}
+
+/** The eraser sits at the fingers' centroid, moved by how far it has moved since `centroid`. */
+interface EraseBase {
+  centroid: Point;
+  at: Point;
 }
 
 interface GestureBase {
@@ -67,13 +85,17 @@ interface GestureBase {
 
 /**
  * Turns raw pointer events into tool strokes, camera moves, and tap gestures.
- * 1 finger = tool; 2–3 fingers = pan; 4 fingers = pan + pinch zoom.
+ * 1 finger = tool; 2 fingers = pan and 3 fingers = eraser, or the other way
+ * round (`eraseFingers`); 4 fingers = pan + pinch zoom.
  */
 export class InputRouter {
   private touches = new Map<number, Track>();
   private palms = new Set<number>();
   private seq: Sequence | null = null;
   private base: GestureBase | null = null;
+  private eraseBase: EraseBase | null = null;
+  /** Where the finger eraser is, in screen px. */
+  private eraseAt: Point = { x: 0, y: 0 };
   private toolPointer: number | null = null;
   private panPointer: { id: number; x: number; y: number } | null = null;
   /** Recent camera positions during a touch gesture, for the release speed. */
@@ -229,27 +251,71 @@ export class InputRouter {
         drawId: e.pointerId,
         toolOpen: true,
         drawLifted: false,
+        eraseOpen: false,
+        eraseAt: 0,
       };
       this.target.toolDown(this.world(e));
       return;
     }
 
-    if (seq.mode === 'gesture') {
-      this.resetBase();
+    if (seq.mode === 'erase') {
+      if (
+        this.touches.size > this.options.eraseFingers &&
+        this.now() - seq.eraseAt < CANCEL_WINDOW_MS &&
+        this.eraseTravel() < CANCEL_TRAVEL_PX
+      ) {
+        // Another finger arrived quickly: a pan or pinch, not erasing.
+        this.target.eraseCancel();
+        seq.eraseOpen = false;
+        this.startGesture(seq);
+      } else {
+        this.resetEraseBase();
+      }
+    } else if (seq.mode === 'gesture') {
+      if (
+        this.touches.size === 3 &&
+        this.options.eraseFingers === 3 &&
+        this.now() - seq.startAt < ERASE_WINDOW_MS &&
+        this.maxTravel() < CANCEL_TRAVEL_PX
+      ) {
+        // Three fingers together: erase under them.
+        this.target.gestureEnd();
+        this.trail = [];
+        this.base = null;
+        this.startErase(seq);
+      } else {
+        this.resetBase();
+      }
     } else if (
       !seq.drawLifted &&
       this.now() - seq.startAt < CANCEL_WINDOW_MS &&
       this.travel(seq.drawId) < CANCEL_TRAVEL_PX
     ) {
-      // A second finger arrived quickly: this was a gesture all along.
+      // A second finger arrived quickly: this was a gesture (or erasing) all along.
       this.target.toolCancel();
       seq.toolOpen = false;
-      seq.mode = 'gesture';
-      this.trail = [];
-      this.target.gestureStart();
-      this.resetBase();
+      if (this.options.eraseFingers === 2) this.startErase(seq);
+      else this.startGesture(seq);
     }
     // Otherwise a late finger while drawing is ignored.
+  }
+
+  private startErase(seq: Sequence): void {
+    seq.mode = 'erase';
+    seq.eraseOpen = true;
+    seq.eraseAt = this.now();
+    this.eraseAt = centroid([...this.touches.values()]);
+    this.resetEraseBase();
+    const { x, y } = this.eraseAt;
+    this.target.eraseDown(this.target.camera.toWorld(x, y));
+  }
+
+  private startGesture(seq: Sequence): void {
+    seq.mode = 'gesture';
+    this.eraseBase = null;
+    this.trail = [];
+    this.target.gestureStart();
+    this.resetBase();
   }
 
   private touchMove(e: PointerLike): void {
@@ -263,6 +329,8 @@ export class InputRouter {
       if (e.pointerId === seq.drawId && !seq.drawLifted) {
         this.target.toolMove(this.worldSamples(e));
       }
+    } else if (seq.mode === 'erase') {
+      this.applyErase();
     } else {
       this.applyGesture();
     }
@@ -282,6 +350,13 @@ export class InputRouter {
       // A clean lift is committed when the sequence ends.
     } else if (seq.mode === 'gesture') {
       this.resetBase();
+    } else if (seq.mode === 'erase') {
+      if (cancelled && seq.eraseOpen) {
+        this.target.eraseCancel();
+        seq.eraseOpen = false;
+      }
+      // The eraser stays put while the other fingers carry on.
+      this.resetEraseBase();
     }
 
     if (this.touches.size === 0) this.endSequence();
@@ -291,9 +366,37 @@ export class InputRouter {
     const seq = this.seq!;
     this.seq = null;
     this.base = null;
+    this.eraseBase = null;
 
     if (seq.toolOpen) this.target.toolUp();
+    if (seq.eraseOpen) this.target.eraseUp();
     if (seq.mode === 'gesture') this.target.gestureEnd(this.releaseVelocity());
+  }
+
+  private resetEraseBase(): void {
+    const pts = [...this.touches.values()];
+    this.eraseBase = pts.length
+      ? { centroid: centroid(pts), at: this.eraseAt }
+      : null;
+  }
+
+  private applyErase(): void {
+    const base = this.eraseBase;
+    if (!base || !this.seq?.eraseOpen) return;
+    const c = centroid([...this.touches.values()]);
+    this.eraseAt = {
+      x: base.at.x + c.x - base.centroid.x,
+      y: base.at.y + c.y - base.centroid.y,
+    };
+    const { x, y } = this.eraseAt;
+    this.target.eraseMove([this.target.camera.toWorld(x, y)]);
+  }
+
+  /** How far the eraser has moved since it started. */
+  private eraseTravel(): number {
+    const base = this.eraseBase;
+    if (!base) return 0;
+    return Math.hypot(this.eraseAt.x - base.at.x, this.eraseAt.y - base.at.y);
   }
 
   /** Screen velocity of a pan at release; zero if it had stopped or was zooming. */
@@ -359,6 +462,10 @@ export class InputRouter {
 
   private gesturePoints(): Track[] {
     return [...this.touches.values()].slice(0, PINCH_FINGERS);
+  }
+
+  private maxTravel(): number {
+    return Math.max(...[...this.touches.keys()].map((id) => this.travel(id)));
   }
 
   private travel(id: number): number {

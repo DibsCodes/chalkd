@@ -7,11 +7,13 @@ import type {
   Background,
   BoardMeta,
   Bounds,
+  EraserSettings,
   Item,
 } from '../../shared/types';
 import type { StrokeStyle } from './items';
 import { Renderer } from './renderer';
 import { Scene } from './scene';
+import { EraserTool } from './tools/eraser';
 import { PenTool } from './tools/pen';
 import type { Tool } from './tools/tool';
 
@@ -46,7 +48,16 @@ export class Editor implements InputTarget {
   readonly renderer: Renderer;
   readonly input: InputRouter;
   tool: Tool;
+  /** What fingers erase with when the eraser isn't the tool in use. */
+  eraserSettings: EraserSettings = { mode: 'partial', size: 40 };
 
+  /** The eraser fingers are using right now. */
+  private erasing: EraserTool | null = null;
+  /**
+   * What fingers erase with when another tool is selected. Kept while a
+   * loop it drew waits for its tap.
+   */
+  private spareEraser: EraserTool | null = null;
   private cameraListeners = new Set<() => void>();
   private backgroundListeners = new Set<(bg: Background) => void>();
   private animation: number | null = null;
@@ -60,6 +71,7 @@ export class Editor implements InputTarget {
     );
     this.input = new InputRouter(this, {
       palmContactPx: null,
+      eraseFingers: 3,
       ...options,
     });
     this.input.attach(container);
@@ -77,6 +89,7 @@ export class Editor implements InputTarget {
   load(board: { meta: BoardMeta; items: Item[]; assets: AssetData[] }): void {
     this.stopAnimation();
     this.tool.cancel();
+    this.releaseSpareEraser(true);
     this.history.clear();
     this.assets.load(board.assets);
     this.scene.apply({ added: board.items, removed: this.scene.all() });
@@ -91,6 +104,7 @@ export class Editor implements InputTarget {
 
   /** Switch tools between interactions (an open stroke is abandoned). */
   setTool(tool: Tool): void {
+    this.releaseSpareEraser(true);
     this.tool.cancel();
     this.tool.dispose?.();
     this.tool = tool;
@@ -130,10 +144,61 @@ export class Editor implements InputTarget {
 
   toolUp(): void {
     this.tool.up();
+    // A one-finger stroke drops a waiting finger-eraser loop, as touching
+    // outside a loop does with the eraser tool.
+    this.releaseSpareEraser(true);
   }
 
   toolCancel(): void {
     this.tool.cancel();
+    // More fingers landed; the tool may have covered a waiting loop.
+    this.spareEraser?.activate();
+  }
+
+  eraseDown(p: Point): void {
+    this.stopAnimation();
+    // The eraser tool erases for itself, so a loop it draws can still be tapped.
+    this.erasing =
+      this.tool instanceof EraserTool
+        ? this.tool
+        : (this.spareEraser ??= this.newSpareEraser());
+    this.erasing.down(p);
+  }
+
+  eraseMove(points: Point[]): void {
+    this.erasing?.move(points);
+  }
+
+  eraseUp(): void {
+    this.erasing?.up();
+    this.erasing = null;
+    this.releaseSpareEraser();
+  }
+
+  eraseCancel(): void {
+    this.erasing?.cancel();
+    this.erasing = null;
+    this.releaseSpareEraser();
+  }
+
+  private newSpareEraser(): EraserTool {
+    const eraser = new EraserTool(this, { ...this.eraserSettings });
+    eraser.onLoopExpired = () => {
+      // Not in the middle of a touch: the tool's live drawing is in use.
+      if (this.input.busy) eraser.waitForTap();
+      else this.releaseSpareEraser(true);
+    };
+    return eraser;
+  }
+
+  /** Done with the spare eraser, unless its loop is waiting (or `force`). */
+  private releaseSpareEraser(force = false): void {
+    const spare = this.spareEraser;
+    if (!spare || spare === this.erasing || (spare.armed && !force)) return;
+    this.spareEraser = null;
+    spare.dispose();
+    // Give the board's overlay back to the tool (Select draws its selection there).
+    this.tool.activate?.();
   }
 
   cameraChanged(): void {

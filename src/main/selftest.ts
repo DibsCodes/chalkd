@@ -332,6 +332,103 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'finger-erase') {
+    // A pen line across the middle, then the erasing fingers (three, or two
+    // if the sandbox's settings say so) wipe down through it, cutting it in
+    // two, and the other count pans without erasing. Then the erasing
+    // fingers circle a scribble and tap inside the loop to delete it.
+    const [w, h] = win.getContentSize();
+    await drag(
+      Array.from({ length: 40 }, (_, i): [number, number] => [
+        w / 2 - 200 + i * 10,
+        h / 2,
+      ]),
+    );
+    const state = async () => ({
+      items: await wc.executeJavaScript('window.__chalkdTest.items()'),
+      camera: await wc.executeJavaScript('window.__chalkdTest.camera()'),
+    });
+    const log: Record<string, unknown> = { drawn: await state() };
+    wc.debugger.attach('1.3');
+    const touch = (type: string, points: [number, number][]) =>
+      wc.debugger.sendCommand('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: points.map(([x, y], id) => ({ x, y, id })),
+      });
+    /**
+     * Fingers 30 px apart, centered on each point of `route` in turn. They
+     * land 15 ms after each other.
+     */
+    const fingersAlong = async (
+      fingers: number,
+      route: [number, number][],
+      name: string,
+    ) => {
+      const at = ([x, y]: [number, number]) =>
+        Array.from({ length: fingers }, (_, i): [number, number] => [
+          x + (i - (fingers - 1) / 2) * 30,
+          y,
+        ]);
+      for (let n = 1; n <= fingers; n++) {
+        await touch('touchStart', at(route[0]).slice(0, n));
+        await pause(15);
+      }
+      for (const p of route.slice(1)) {
+        await touch('touchMove', at(p));
+        await pause(16);
+      }
+      await shot(name);
+      await touch('touchEnd', []);
+      await pause(400);
+    };
+    /** Straight down through the middle of the window. */
+    const swipe = (fingers: number, x: number, dy: number) =>
+      fingersAlong(
+        fingers,
+        Array.from({ length: 21 }, (_, i): [number, number] => [
+          x,
+          h / 2 - dy / 2 + (dy * i) / 20,
+        ]),
+        `e-${fingers}-fingers`,
+      );
+    const erase: number = await wc.executeJavaScript(
+      'window.chalkd.settings.get().then((s) => s.eraseFingers)',
+    );
+    log.eraseFingers = erase;
+    await swipe(erase, w / 2, 200);
+    log.afterErase = await state();
+    await swipe(5 - erase, w / 2 + 100, 150);
+    log.afterPan = await state();
+
+    const [cx, cy] = [w / 2 - 250, h / 2 - 150];
+    await drag(
+      Array.from({ length: 20 }, (_, i): [number, number] => [
+        cx - 40 + i * 4,
+        cy + Math.sin(i / 2) * 20,
+      ]),
+    );
+    log.scribbled = await state();
+    await fingersAlong(
+      erase,
+      Array.from({ length: 41 }, (_, i): [number, number] => [
+        cx + Math.cos((i / 40) * 2 * Math.PI) * 110,
+        cy + Math.sin((i / 40) * 2 * Math.PI) * 110,
+      ]),
+      'e-loop',
+    );
+    await shot('e-loop-waiting');
+    log.looped = await state();
+    await fingersAlong(erase, [[cx, cy]], 'e-tap');
+    log.tapped = await state();
+    await shot('e-done');
+    wc.debugger.detach();
+    writeFileSync(
+      path.join(outDir, 'finger-erase.json'),
+      JSON.stringify(log, null, 2),
+    );
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'coast') {
     const [w, h] = win.getContentSize();
     const cx = w / 2;

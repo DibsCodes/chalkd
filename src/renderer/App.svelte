@@ -58,6 +58,7 @@
       // Lets the self-test import generated files without a file dialog.
       (window as unknown as Record<string, unknown>).__chalkdTest = {
         camera: () => editor.camera.state,
+        items: () => editor.scene.all().length,
         import: (files: { name: string; mime: string; b64: string }[]) =>
           board.import(
             files.map((f) => ({

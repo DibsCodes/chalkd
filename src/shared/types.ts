@@ -197,6 +197,8 @@ export interface AppSettings {
   smoothing: number;
   /** Ignore touches wider than this many px; null = off. */
   palmContactPx: number | null;
+  /** How many fingers erase; the other of two and three moves the board. */
+  eraseFingers: 2 | 3;
   export: ExportOptions;
   /** Where the last export was saved; the next one starts there. */
   lastExportDir: string | null;
@@ -226,6 +228,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   toolbarPosition: 'top',
   smoothing: 0.5,
   palmContactPx: null,
+  eraseFingers: 3,
   export: {
     format: 'pdf',
     area: 'board',
