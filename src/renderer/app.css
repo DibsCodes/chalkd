@@ -1,9 +1,14 @@
 :root {
-  /* The toolbar is laid out at 64px tall, then zoomed by the
-     Toolbar size setting; --toolbar-h is its height on screen. */
+  /* The toolbar is laid out 64px thick, then zoomed by the Toolbar size
+     setting; --toolbar-size is its thickness on screen. The board fills
+     the rest of the window, inset by --board-* on the toolbar's side. */
   --toolbar-scale: 1;
-  --toolbar-base-h: 64px;
-  --toolbar-h: calc(var(--toolbar-base-h) * var(--toolbar-scale));
+  --toolbar-base-size: 64px;
+  --toolbar-size: calc(var(--toolbar-base-size) * var(--toolbar-scale));
+  --board-top: var(--toolbar-size);
+  --board-right: 0px;
+  --board-bottom: 0px;
+  --board-left: 0px;
   --touch-target: 48px;
 
   --fg: #1d2433;
@@ -22,6 +27,19 @@
   color-scheme: light;
   font-family: system-ui, sans-serif;
   font-size: 15px;
+}
+
+:root[data-toolbar='bottom'] {
+  --board-top: 0px;
+  --board-bottom: var(--toolbar-size);
+}
+:root[data-toolbar='left'] {
+  --board-top: 0px;
+  --board-left: var(--toolbar-size);
+}
+:root[data-toolbar='right'] {
+  --board-top: 0px;
+  --board-right: var(--toolbar-size);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -141,8 +159,8 @@ input[type='checkbox'] {
 
 .toasts {
   position: fixed;
-  left: 50%;
-  bottom: 24px;
+  left: calc((100vw + var(--board-left) - var(--board-right)) / 2);
+  bottom: calc(var(--board-bottom) + 24px);
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -165,8 +183,8 @@ input[type='checkbox'] {
 
 .dev-stats {
   position: absolute;
-  top: calc(var(--toolbar-h) + 12px);
-  left: 12px;
+  top: calc(var(--board-top) + 12px);
+  left: calc(var(--board-left) + 12px);
   margin: 0;
   padding: 10px 12px;
   background: rgba(20, 24, 31, 0.82);

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Background, Pattern, Theme } from '../../shared/types';
+  import type { Background, Pattern, Theme, ToolbarPosition } from '../../shared/types';
   import { board } from '../state/board.svelte';
   import { settings } from '../state/settings.svelte';
   import Icon from './Icon.svelte';
@@ -26,6 +26,12 @@
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
+  ];
+  const TOOLBAR_POSITIONS: { value: ToolbarPosition; label: string }[] = [
+    { value: 'top', label: 'Top' },
+    { value: 'bottom', label: 'Bottom' },
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
   ];
 
   let root = $state('');
@@ -188,6 +194,19 @@
       />
       <span class="scale"><span>Smaller</span><span>Larger</span></span>
     </label>
+    <div class="field-label toolbar-position">Toolbar position</div>
+    <div class="segmented" role="radiogroup" aria-label="Toolbar position">
+      {#each TOOLBAR_POSITIONS as t (t.value)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={settings.value.toolbarPosition === t.value}
+          class:on={settings.value.toolbarPosition === t.value}
+          onclick={() => settings.update({ toolbarPosition: t.value })}>{t.label}</button
+        >
+      {/each}
+    </div>
+    <span class="hint">If the toolbar runs out of room, some pens and highlighters move behind a ⋯ button.</span>
   </section>
 
   <section>
@@ -253,6 +272,9 @@
   .field-label {
     font-weight: 600;
     margin-bottom: 8px;
+  }
+  .toolbar-position {
+    margin-top: 16px;
   }
   .row {
     display: flex;

@@ -35,8 +35,8 @@
 <style>
   .zoom {
     position: absolute;
-    right: 16px;
-    bottom: 16px;
+    right: calc(var(--board-right) + 16px);
+    bottom: calc(var(--board-bottom) + 16px);
     display: flex;
     flex-direction: column;
     align-items: flex-end;

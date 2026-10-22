@@ -13,8 +13,8 @@ export interface PressOptions {
    */
   drag?: {
     delayMs: number;
-    onStart: (node: HTMLElement, x: number) => void;
-    onMove: (node: HTMLElement, x: number) => void;
+    onStart: (node: HTMLElement, x: number, y: number) => void;
+    onMove: (node: HTMLElement, x: number, y: number) => void;
     /** `commit` is false when nothing moved or the system cancelled. */
     onEnd: (node: HTMLElement, commit: boolean) => void;
   };
@@ -61,7 +61,7 @@ export const press: Action<HTMLElement, PressOptions> = (node, initial) => {
           lifted = true;
           node.setPointerCapture(pointer);
           node.classList.add('lifted');
-          drag.onStart(node, start.x);
+          drag.onStart(node, start.x, start.y);
         }, drag.delayMs),
       );
     }
@@ -72,7 +72,7 @@ export const press: Action<HTMLElement, PressOptions> = (node, initial) => {
       Math.hypot(e.clientX - start.x, e.clientY - start.y) > MOVE_TOLERANCE_PX;
     if (lifted) {
       dragged ||= far;
-      opts.drag?.onMove(node, e.clientX);
+      opts.drag?.onMove(node, e.clientX, e.clientY);
     } else if (far) {
       reset();
     }
@@ -95,7 +95,7 @@ export const press: Action<HTMLElement, PressOptions> = (node, initial) => {
     reset();
     if (wasLifted) opts.drag?.onEnd(node, false);
   };
-  // Once lifted, a sideways slide drags the button rather than scrolling
+  // Once lifted, a slide drags the button rather than scrolling
   // the toolbar (which would also cancel the pointer).
   const touchMove = (e: TouchEvent) => {
     if (lifted) e.preventDefault();

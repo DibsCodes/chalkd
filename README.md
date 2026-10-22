@@ -29,7 +29,7 @@ To build the package yourself, use the [PKGBUILD](packaging/arch/PKGBUILD): copy
   - board background color and pattern, and making that the default for new boards
   - ink smoothing
   - palm rejection
-  - light/dark theme and toolbar size
+  - light/dark theme, toolbar size, and toolbar position (top, bottom, left or right)
   - the Chalkd folder location
 - **Saving:** boards autosave to `~/Documents/Chalkd` and the last board reopens on launch.
 - **Select (lasso icon):**

@@ -165,6 +165,8 @@ export interface EraserSettings {
 
 export type Theme = 'system' | 'light' | 'dark';
 
+export type ToolbarPosition = 'top' | 'bottom' | 'left' | 'right';
+
 export interface ExportOptions {
   format: 'png' | 'pdf';
   /** PNG: the whole board, or just what's on screen. */
@@ -187,8 +189,10 @@ export interface AppSettings {
   eraser: EraserSettings;
   defaultBackground: Background;
   theme: Theme;
-  /** Size of the top toolbar, 1 = normal. */
+  /** Size of the toolbar, 1 = normal. */
   toolbarScale: number;
+  /** Which edge of the window the toolbar sits on. */
+  toolbarPosition: ToolbarPosition;
   /** 0 = raw input, 1 = heavily smoothed. */
   smoothing: number;
   /** Ignore touches wider than this many px; null = off. */
@@ -219,6 +223,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultBackground: DEFAULT_BACKGROUND,
   theme: 'system',
   toolbarScale: 1,
+  toolbarPosition: 'top',
   smoothing: 0.5,
   palmContactPx: null,
   export: {

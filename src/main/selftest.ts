@@ -456,6 +456,79 @@ export async function runSelfTest(
     return;
   }
 
+  if (process.env.CHALKD_SELFTEST_MODE === 'toolbar-position') {
+    // Moves the toolbar to each edge from Settings. Seed the sandbox with
+    // more presets than fit to see some go behind the "more" button.
+    const count = (sel: string) =>
+      wc.executeJavaScript(
+        `document.querySelectorAll(${JSON.stringify(sel)}).length`,
+      ) as Promise<number>;
+    const log: Record<string, unknown> = {};
+    for (const side of ['Top', 'Bottom', 'Left', 'Right']) {
+      await tap('[aria-label="Settings"]');
+      await tap(side);
+      await key('Escape');
+      await pause(300);
+      await shot(`p-${side.toLowerCase()}`);
+      log[side] = {
+        pens: await count('[aria-label="Pens"] [data-preset]'),
+        highlighters: await count('[aria-label="Highlighters"] [data-preset]'),
+        board: await wc.executeJavaScript(
+          `(() => { const r = document.querySelector('.board').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()`,
+        ),
+      };
+      // Hold the first pen and slide it onto the third, along the toolbar.
+      const pen = (n: number) =>
+        `[aria-label="Pens"] [data-preset]:nth-child(${n})`;
+      if ((await count(pen(3))) && (side === 'Left' || side === 'Bottom')) {
+        const [x0, y0] = await center(pen(1));
+        const [x1, y1] = await center(pen(3));
+        const order = () =>
+          wc.executeJavaScript(
+            `[...document.querySelectorAll('[aria-label="Pens"] [data-preset]')].map((b) => b.dataset.preset)`,
+          ) as Promise<string[]>;
+        const before = await order();
+        wc.sendInputEvent({ type: 'mouseMove', x: x0, y: y0 });
+        wc.sendInputEvent({
+          type: 'mouseDown',
+          x: x0,
+          y: y0,
+          button: 'left',
+          clickCount: 1,
+        });
+        await pause(800);
+        for (let i = 1; i <= 15; i++) {
+          wc.sendInputEvent({
+            type: 'mouseMove',
+            x: x0 + ((x1 - x0) * i) / 15,
+            y: y0 + ((y1 - y0) * i) / 15,
+            modifiers: ['leftbuttondown'],
+          });
+          await pause(16);
+        }
+        wc.sendInputEvent({
+          type: 'mouseUp',
+          x: x1,
+          y: y1,
+          button: 'left',
+          clickCount: 1,
+        });
+        await pause(400);
+        log[`${side} drag`] = { before, after: await order() };
+      }
+      if (await count('[aria-label$="more pens"]')) {
+        await tap('[aria-label$="more pens"]');
+        await shot(`p-${side.toLowerCase()}-more`);
+        await key('Escape');
+      }
+    }
+    writeFileSync(
+      path.join(outDir, 'toolbar-position.json'),
+      JSON.stringify(log, null, 2),
+    );
+    return;
+  }
+
   if (process.env.CHALKD_SELFTEST_MODE === 'drawer') {
     const [w, h] = win.getContentSize();
     const scribble = (dx: number): [number, number][] =>

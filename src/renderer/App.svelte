@@ -14,13 +14,16 @@
   import { IMPORTABLE } from './board/import';
   import Popover from './ui/Popover.svelte';
   import PresetEditor from './ui/PresetEditor.svelte';
+  import PresetPicker from './ui/PresetPicker.svelte';
   import SettingsPanel from './ui/SettingsPanel.svelte';
   import Toolbar from './ui/Toolbar.svelte';
   import ZoomPill from './ui/ZoomPill.svelte';
+  import { POPOVER_SIDE } from './ui/toolbar-layout';
   import { errorMessage, showToast } from './ui/toast';
 
   type OpenPopover =
     | { type: 'preset'; kind: PresetKind; id: string; anchor: DOMRect }
+    | { type: 'presets'; kind: PresetKind; anchor: DOMRect }
     | { type: 'eraser'; anchor: DOMRect }
     | { type: 'import'; anchor: DOMRect };
 
@@ -32,6 +35,8 @@
   /** Board being exported: null = the open board; undefined = no dialog. */
   let exporting = $state<string | null | undefined>(undefined);
   let ready = $state(false);
+  /** Toolbar popovers open toward the board. */
+  const side = $derived(POPOVER_SIDE[settings.value.toolbarPosition]);
 
   const editing = $derived.by(() => {
     if (popover?.type !== 'preset') return null;
@@ -125,6 +130,10 @@
     );
   });
 
+  $effect(() => {
+    document.documentElement.dataset.toolbar = settings.value.toolbarPosition;
+  });
+
   /** Files dragged in from the file manager. */
   async function onDrop(e: DragEvent) {
     e.preventDefault();
@@ -196,6 +205,8 @@
     }}
     onEditPreset={(kind, id, el) =>
       (popover = { type: 'preset', kind, id, anchor: el.getBoundingClientRect() })}
+    onMorePresets={(kind, el) =>
+      (popover = { type: 'presets', kind, anchor: el.getBoundingClientRect() })}
     onEraserMenu={(el) => (popover = { type: 'eraser', anchor: el.getBoundingClientRect() })}
     onImport={(el) => (popover = { type: 'import', anchor: el.getBoundingClientRect() })}
     onExport={() => {
@@ -216,6 +227,7 @@
   {#if editing && popover}
     <Popover
       anchor={popover.anchor}
+      {side}
       label="Edit {editing.kind}"
       width={360}
       onclose={() => (popover = null)}
@@ -232,8 +244,33 @@
         }}
       />
     </Popover>
+  {:else if popover?.type === 'presets'}
+    {@const { kind, anchor } = popover}
+    <Popover
+      {anchor}
+      {side}
+      label={kind === 'pen' ? 'Pens' : 'Highlighters'}
+      width={300}
+      onclose={() => (popover = null)}
+    >
+      <PresetPicker
+        {kind}
+        onpick={() => (popover = null)}
+        onedit={(id) => (popover = { type: 'preset', kind, id, anchor })}
+        onadd={() => {
+          const copy = settings.duplicatePreset(kind);
+          popover = { type: 'preset', kind, id: copy.id, anchor };
+        }}
+      />
+    </Popover>
   {:else if popover?.type === 'eraser'}
-    <Popover anchor={popover.anchor} label="Eraser" width={340} onclose={() => (popover = null)}>
+    <Popover
+      anchor={popover.anchor}
+      {side}
+      label="Eraser"
+      width={340}
+      onclose={() => (popover = null)}
+    >
       <EraserMenu
         eraser={settings.value.eraser}
         onchange={(patch) => settings.update({ eraser: { ...settings.value.eraser, ...patch } })}
@@ -241,7 +278,13 @@
       />
     </Popover>
   {:else if popover?.type === 'import'}
-    <Popover anchor={popover.anchor} label="Import" width={330} onclose={() => (popover = null)}>
+    <Popover
+      anchor={popover.anchor}
+      {side}
+      label="Import"
+      width={330}
+      onclose={() => (popover = null)}
+    >
       <ImportMenu
         onfile={importFromFile}
         onpaste={() => {
@@ -271,10 +314,7 @@
   }
   .board-overlay {
     position: absolute;
-    top: var(--toolbar-h);
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: var(--board-top) var(--board-right) var(--board-bottom) var(--board-left);
     pointer-events: none;
     overflow: hidden;
   }
@@ -283,10 +323,7 @@
   }
   .board {
     position: absolute;
-    top: var(--toolbar-h);
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: var(--board-top) var(--board-right) var(--board-bottom) var(--board-left);
     touch-action: none;
     overflow: hidden;
   }
