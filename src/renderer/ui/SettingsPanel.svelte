@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Background, Pattern, Theme, ToolbarPosition } from '../../shared/types';
+  import { version } from '../../../package.json';
   import { board } from '../state/board.svelte';
   import { settings } from '../state/settings.svelte';
   import Icon from './Icon.svelte';
@@ -289,7 +290,7 @@
     </section>
   {/if}
 
-  <footer>Chalkd 0.1.0 · Free software under the GPL-3.0</footer>
+  <footer>Chalkd {version} · Free software under the GPL-3.0</footer>
 </aside>
 
 <style>

@@ -1,6 +1,6 @@
 # Maintainer: Dibs <jdibello89@gmail.com>
 pkgname=chalkd
-pkgver=1.1.1
+pkgver=1.3.0
 pkgrel=1
 pkgdesc='A touch-first infinite whiteboard for teachers'
 arch=('x86_64')
