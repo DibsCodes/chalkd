@@ -1,10 +1,17 @@
 import {
+  closeSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
+  renameSync,
   rmSync,
+  statSync,
   watch,
+  writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 import type { PrintJob } from '../shared/types';
@@ -52,6 +59,34 @@ export class PrintInbox {
     rmSync(path.join(this.dir, `${id}.title`), { force: true });
   }
 
+  /**
+   * Add a job from a finished PDF somewhere else: a file opened with Chalkd,
+   * or what the Windows printer port wrote. With `move`, the file is taken
+   * (renamed) rather than copied — on Windows that rename fails while the
+   * print spooler is still writing, so a false return means "try again".
+   * Returns false if the file isn't there, is still busy, or isn't a PDF.
+   */
+  adopt(file: string, title: string, { move = false } = {}): boolean {
+    // Checked before touching it, so a half-written file stays put to retry.
+    if (!isCompletePdf(file)) return false;
+    const id = `${Math.floor(Date.now() / 1000)}-c${++adopted}`;
+    const part = path.join(this.dir, `${id}.part`);
+    try {
+      if (move) renameSync(file, part);
+      else copyFileSync(file, part);
+    } catch {
+      return false;
+    }
+    if (!isCompletePdf(part)) {
+      // It changed under us; don't hand out a broken job.
+      rmSync(part, { force: true });
+      return false;
+    }
+    if (title) writeFileSync(path.join(this.dir, `${id}.title`), title);
+    renameSync(part, path.join(this.dir, `${id}.pdf`));
+    return true;
+  }
+
   /** Call `onJob` whenever a job may have arrived. Returns a stop function. */
   watch(onJob: () => void): () => void {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +102,28 @@ export class PrintInbox {
   }
 }
 
+let adopted = 0;
+
+/** Starts with %PDF- and has an %%EOF near the end. */
+function isCompletePdf(file: string): boolean {
+  let fd: number | null = null;
+  try {
+    const size = statSync(file).size;
+    if (size < 16) return false;
+    fd = openSync(file, 'r');
+    const head = Buffer.alloc(5);
+    readSync(fd, head, 0, 5, 0);
+    const tailLength = Math.min(size, 1024);
+    const tail = Buffer.alloc(tailLength);
+    readSync(fd, tail, 0, tailLength, size - tailLength);
+    return head.toString('latin1') === '%PDF-' && tail.includes('%%EOF');
+  } catch {
+    return false;
+  } finally {
+    if (fd !== null) closeSync(fd);
+  }
+}
+
 /** Common document extensions to drop from job titles. */
 const DOC_EXT =
   /\.(pdf|odt|ods|odp|odg|docx?|xlsx?|pptx?|rtf|txt|html?|png|jpe?g|gif|webp|svg)$/i;
@@ -79,8 +136,21 @@ const MAX_NAME = 60;
  * get the default.
  */
 export function printedBoardName(title: string): string | null {
-  let name = title.replace(/\s+/g, ' ').trim().replace(DOC_EXT, '').trim();
-  if (!name || /^\(?stdin\)?$|^smbprn\.\d+|^untitled( \d+)?$/i.test(name)) {
+  let name = title
+    .replace(/\s+/g, ' ')
+    .trim()
+    // Windows apps often put their own name in the job title.
+    .replace(/^Microsoft (Word|Excel|PowerPoint) - /i, '')
+    .replace(/ - (Notepad|Paint|WordPad)$/i, '')
+    .trim()
+    .replace(DOC_EXT, '')
+    .trim();
+  if (
+    !name ||
+    /^\(?stdin\)?$|^smbprn\.\d+|^untitled( \d+)?$|^\*?untitled$|^(print )?document$/i.test(
+      name,
+    )
+  ) {
     return null;
   }
   if (name.length > MAX_NAME) {

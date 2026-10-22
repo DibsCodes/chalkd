@@ -5,17 +5,16 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
   statSync,
 } from 'node:fs';
-import path from 'node:path';
+import path, { posix } from 'node:path';
 import {
   DEFAULT_BACKGROUND,
   type Background,
   type TreeNode,
 } from '../shared/types';
 import { BoardFile } from './board-file';
-import { writeFileAtomic } from './fs-util';
+import { renameRetrying, writeFileAtomic } from './fs-util';
 
 export const BOARD_EXT = '.chalkd';
 export const ORDER_FILE = '.order.json';
@@ -25,6 +24,10 @@ export const FIRST_NOTEBOOK = 'My Notebook';
  * The library is a plain folder tree: notebooks are folders, boards are
  * `.chalkd` files, and each folder's `.order.json` lists its children in
  * display order (PLAN.md › Storage).
+ *
+ * Library-relative paths always use `/`, on every OS: the renderer splits
+ * them on `/`, and `lastBoard` in settings stays valid if the library moves
+ * between machines. Only `abs` turns one into a real path.
  */
 export class Library {
   constructor(
@@ -48,13 +51,15 @@ export class Library {
   }
 
   abs(rel: string): string {
-    return path.join(this.root, rel);
+    return path.join(this.root, ...rel.split('/'));
   }
 
   /** Library-relative path for an absolute one, or null if it's outside. */
   rel(abs: string): string | null {
     const r = path.relative(this.root, abs);
-    return r && !r.startsWith('..') && !path.isAbsolute(r) ? r : null;
+    return r && !r.startsWith('..') && !path.isAbsolute(r)
+      ? r.split(path.sep).join('/')
+      : null;
   }
 
   isBoard(rel: string | null): rel is string {
@@ -73,7 +78,7 @@ export class Library {
   /** First board in display order, depth-first. */
   firstBoard(dir = ''): string | null {
     for (const name of this.children(dir)) {
-      const rel = path.join(dir, name);
+      const rel = posix.join(dir, name);
       if (name.endsWith(BOARD_EXT)) return rel;
       const inner = this.firstBoard(rel);
       if (inner) return inner;
@@ -111,7 +116,7 @@ export class Library {
   /** The whole library as a tree, in display order. */
   tree(dir = ''): TreeNode[] {
     return this.children(dir).map((name) => {
-      const rel = path.join(dir, name);
+      const rel = posix.join(dir, name);
       return name.endsWith(BOARD_EXT)
         ? { type: 'board', name: boardDisplayName(rel), path: rel }
         : { type: 'notebook', name, path: rel, children: this.tree(rel) };
@@ -121,20 +126,27 @@ export class Library {
   /** Rename in place, keeping its spot in the order. Returns the new path. */
   rename(rel: string, newName: string): string {
     const dir = parentOf(rel);
-    const oldName = path.basename(rel);
+    const oldName = posix.basename(rel);
     const ext = rel.endsWith(BOARD_EXT) ? BOARD_EXT : '';
     const trimmed =
       ext && newName.endsWith(ext) ? newName.slice(0, -ext.length) : newName;
     const wanted = sanitize(trimmed);
     if (wanted + ext === oldName) return rel;
     const order = this.children(dir);
-    const finalName = this.uniqueName(dir, wanted, ext) + ext;
-    renameSync(this.abs(rel), this.abs(path.join(dir, finalName)));
+    // On Windows "a" and "A" are the same file, so a change of case alone
+    // would otherwise look taken and become "a (2)".
+    const caseOnly =
+      (wanted + ext).toLowerCase() === oldName.toLowerCase() &&
+      !order.includes(wanted + ext);
+    const finalName = caseOnly
+      ? wanted + ext
+      : this.uniqueName(dir, wanted, ext) + ext;
+    renameRetrying(this.abs(rel), this.abs(posix.join(dir, finalName)));
     this.writeOrder(
       dir,
       order.map((n) => (n === oldName ? finalName : n)),
     );
-    return path.join(dir, finalName);
+    return posix.join(dir, finalName);
   }
 
   /**
@@ -142,7 +154,7 @@ export class Library {
    * before the sibling named `before`, or at the end. Returns the new path.
    */
   move(rel: string, parent: string, before: string | null): string {
-    const name = path.basename(rel);
+    const name = posix.basename(rel);
     const from = parentOf(rel);
     if (!rel.endsWith(BOARD_EXT) && isSameOrInside(parent, rel)) {
       throw new Error("A notebook can't go inside itself");
@@ -151,15 +163,15 @@ export class Library {
     if (from !== parent) {
       const ext = rel.endsWith(BOARD_EXT) ? BOARD_EXT : '';
       const sourceOrder = this.children(from).filter((n) => n !== name);
-      finalName = this.uniqueName(parent, path.basename(name, ext), ext) + ext;
-      renameSync(this.abs(rel), this.abs(path.join(parent, finalName)));
+      finalName = this.uniqueName(parent, posix.basename(name, ext), ext) + ext;
+      renameRetrying(this.abs(rel), this.abs(posix.join(parent, finalName)));
       this.writeOrder(from, sourceOrder);
     }
     const order = this.children(parent).filter((n) => n !== finalName);
     const at = before === null ? -1 : order.indexOf(before);
     order.splice(at < 0 ? order.length : at, 0, finalName);
     this.writeOrder(parent, order);
-    return path.join(parent, finalName);
+    return posix.join(parent, finalName);
   }
 
   /**
@@ -170,23 +182,23 @@ export class Library {
     if (!rel.endsWith(BOARD_EXT))
       throw new Error('Only boards can be duplicated');
     const dir = parentOf(rel);
-    const name = path.basename(rel);
+    const name = posix.basename(rel);
     const base = this.uniqueName(
       dir,
-      sanitize(`${path.basename(rel, BOARD_EXT)} copy`),
+      sanitize(`${posix.basename(rel, BOARD_EXT)} copy`),
       BOARD_EXT,
     );
     const file = base + BOARD_EXT;
     copyFileSync(
       this.abs(rel),
-      this.abs(path.join(dir, file)),
+      this.abs(posix.join(dir, file)),
       constants.COPYFILE_EXCL,
     );
     const order = this.children(dir).filter((n) => n !== file);
     const at = order.indexOf(name);
     order.splice(at < 0 ? order.length : at + 1, 0, file);
     this.writeOrder(dir, order);
-    return path.join(dir, file);
+    return posix.join(dir, file);
   }
 
   /** Remove via `trash` (the system trash in the app) and fix up the order. */
@@ -195,16 +207,16 @@ export class Library {
     trash: (abs: string) => Promise<void>,
   ): Promise<void> {
     const dir = parentOf(rel);
-    const order = this.children(dir).filter((n) => n !== path.basename(rel));
+    const order = this.children(dir).filter((n) => n !== posix.basename(rel));
     await trash(this.abs(rel));
     this.writeOrder(dir, order);
   }
 
   createNotebook(parent: string, name: string): string {
     const finalName = this.uniqueName(parent, sanitize(name), '');
-    mkdirSync(this.abs(path.join(parent, finalName)));
+    mkdirSync(this.abs(posix.join(parent, finalName)));
     this.appendToOrder(parent, finalName);
-    return path.join(parent, finalName);
+    return posix.join(parent, finalName);
   }
 
   /** Create an auto-named board in `notebook` (e.g. "Oct 7 · 10:42 AM"). */
@@ -216,17 +228,17 @@ export class Library {
     const base = this.uniqueName(notebook, sanitize(name), BOARD_EXT);
     const file = base + BOARD_EXT;
     BoardFile.open(
-      this.abs(path.join(notebook, file)),
+      this.abs(posix.join(notebook, file)),
       this.newBoardBackground(),
     ).close();
     this.appendToOrder(notebook, file);
-    return path.join(notebook, file);
+    return posix.join(notebook, file);
   }
 
   private readOrder(dir: string): string[] {
     try {
       const data = JSON.parse(
-        readFileSync(this.abs(path.join(dir, ORDER_FILE)), 'utf8'),
+        readFileSync(this.abs(posix.join(dir, ORDER_FILE)), 'utf8'),
       );
       return Array.isArray(data)
         ? data.filter((n) => typeof n === 'string')
@@ -246,7 +258,7 @@ export class Library {
 
   private writeOrder(dir: string, order: string[]): void {
     writeFileAtomic(
-      this.abs(path.join(dir, ORDER_FILE)),
+      this.abs(posix.join(dir, ORDER_FILE)),
       JSON.stringify(order, null, 2) + '\n',
     );
   }
@@ -255,7 +267,7 @@ export class Library {
     let candidate = base;
     for (
       let n = 2;
-      existsSync(this.abs(path.join(dir, candidate + ext)));
+      existsSync(this.abs(posix.join(dir, candidate + ext)));
       n++
     ) {
       candidate = `${base} (${n})`;
@@ -278,26 +290,39 @@ export function autoBoardName(now: Date): string {
 
 /** Library-relative parent folder ('' for the top level). */
 export function parentOf(rel: string): string {
-  const dir = path.dirname(rel);
+  const dir = posix.dirname(rel);
   return dir === '.' ? '' : dir;
 }
 
 /** Is `rel` the same as `ancestor`, or somewhere inside it? */
 export function isSameOrInside(rel: string, ancestor: string): boolean {
-  return rel === ancestor || rel.startsWith(ancestor + path.sep);
+  return rel === ancestor || rel.startsWith(ancestor + posix.sep);
 }
 
 export function boardDisplayName(rel: string): string {
-  return path.basename(rel, BOARD_EXT);
+  return posix.basename(rel, BOARD_EXT);
 }
 
-/** Names become file names: no slashes, no leading dots, no control chars. */
+/**
+ * Names become file names that are valid on Linux and Windows alike, so a
+ * library can move between them: no slashes, no leading dots, no control
+ * chars, none of Windows' reserved characters, no trailing dots or spaces
+ * (Windows drops them), and no device names like CON or NUL.
+ *
+ * A colon becomes "∶" (U+2236), so "10:42 AM" still reads as a time. On
+ * Windows a real colon would quietly write to a hidden stream of "…10".
+ */
 export function sanitize(name: string): string {
   const clean = name
     // oxlint-disable-next-line no-control-regex -- stripping them is the point
-    .replace(/[/\\\u0000-\u001f]/g, '-')
+    .replace(/[/\\<>|\u0000-\u001f]/g, '-')
+    .replace(/:/g, '∶')
+    .replace(/"/g, "'")
+    .replace(/[?*]/g, '')
     .replace(/^\.+/, '')
-    .trim();
+    .replace(/[. ]+$/, '')
+    .trim()
+    .replace(/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(?=\.|$)/i, '$1_');
   return clean || 'Untitled';
 }
 

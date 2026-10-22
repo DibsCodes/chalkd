@@ -44,7 +44,7 @@ describe('tree', () => {
       'notebook:Unit',
     ]);
     expect(math.children![3].children![0].path).toBe(
-      path.join('Math', 'Unit', 'D.chalkd'),
+      path.posix.join('Math', 'Unit', 'D.chalkd'),
     );
   });
 });
@@ -52,22 +52,22 @@ describe('tree', () => {
 describe('rename', () => {
   it('keeps the item in place in the order', () => {
     const { math } = sample();
-    const renamed = lib.rename(path.join(math, 'B.chalkd'), 'Bee');
-    expect(renamed).toBe(path.join('Math', 'Bee.chalkd'));
+    const renamed = lib.rename(path.posix.join(math, 'B.chalkd'), 'Bee');
+    expect(renamed).toBe(path.posix.join('Math', 'Bee.chalkd'));
     expect(names(math)).toEqual(['A.chalkd', 'Bee.chalkd', 'C.chalkd', 'Unit']);
   });
 
   it('ignores a typed .chalkd and avoids clashes', () => {
     const { math } = sample();
-    expect(lib.rename(path.join(math, 'A.chalkd'), 'C.chalkd')).toBe(
-      path.join('Math', 'C (2).chalkd'),
+    expect(lib.rename(path.posix.join(math, 'A.chalkd'), 'C.chalkd')).toBe(
+      path.posix.join('Math', 'C (2).chalkd'),
     );
   });
 
   it('renames notebooks', () => {
     const { unit } = sample();
     expect(lib.rename(unit, 'Unit 3 – Fractions')).toBe(
-      path.join('Math', 'Unit 3 – Fractions'),
+      path.posix.join('Math', 'Unit 3 – Fractions'),
     );
     expect(lib.tree()[0].children![3].children![0].name).toBe('D');
   });
@@ -76,16 +76,16 @@ describe('rename', () => {
 describe('move', () => {
   it('reorders within a notebook', () => {
     const { math } = sample();
-    lib.move(path.join(math, 'C.chalkd'), math, 'A.chalkd');
+    lib.move(path.posix.join(math, 'C.chalkd'), math, 'A.chalkd');
     expect(names(math)).toEqual(['C.chalkd', 'A.chalkd', 'B.chalkd', 'Unit']);
-    lib.move(path.join(math, 'C.chalkd'), math, null);
+    lib.move(path.posix.join(math, 'C.chalkd'), math, null);
     expect(names(math)).toEqual(['A.chalkd', 'B.chalkd', 'Unit', 'C.chalkd']);
   });
 
   it('moves into another notebook at a position, fixing both orders', () => {
     const { math, unit } = sample();
-    const moved = lib.move(path.join(math, 'A.chalkd'), unit, 'D.chalkd');
-    expect(moved).toBe(path.join('Math', 'Unit', 'A.chalkd'));
+    const moved = lib.move(path.posix.join(math, 'A.chalkd'), unit, 'D.chalkd');
+    expect(moved).toBe(path.posix.join('Math', 'Unit', 'A.chalkd'));
     expect(names(unit)).toEqual(['A.chalkd', 'D.chalkd']);
     expect(names(math)).toEqual(['B.chalkd', 'C.chalkd', 'Unit']);
   });
@@ -93,7 +93,7 @@ describe('move', () => {
   it('renames on clash and moves to the top level', () => {
     const { math, unit } = sample();
     lib.createBoard('', t, 'D');
-    expect(lib.move(path.join(unit, 'D.chalkd'), '', null)).toBe(
+    expect(lib.move(path.posix.join(unit, 'D.chalkd'), '', null)).toBe(
       'D (2).chalkd',
     );
     expect(names(math)).toContain('Unit');
@@ -109,7 +109,7 @@ describe('move', () => {
 describe('duplicate', () => {
   it('copies a board just after the original, with its contents', () => {
     const { math } = sample();
-    const a = path.join(math, 'A.chalkd');
+    const a = path.posix.join(math, 'A.chalkd');
     const settings = new SettingsStore(path.join(dir, '.config'));
     const session = new BoardSession(lib, settings);
     session.open(a);
@@ -125,7 +125,7 @@ describe('duplicate', () => {
     });
     session.close();
 
-    expect(lib.duplicate(a)).toBe(path.join(math, 'A copy.chalkd'));
+    expect(lib.duplicate(a)).toBe(path.posix.join(math, 'A copy.chalkd'));
     expect(names(math)).toEqual([
       'A.chalkd',
       'A copy.chalkd',
@@ -134,15 +134,17 @@ describe('duplicate', () => {
       'Unit',
     ]);
     const copy = new BoardSession(lib, settings);
-    expect(copy.open(path.join(math, 'A copy.chalkd')).items).toHaveLength(1);
+    expect(
+      copy.open(path.posix.join(math, 'A copy.chalkd')).items,
+    ).toHaveLength(1);
     copy.close();
   });
 
   it('numbers further copies', () => {
     const { math } = sample();
-    const a = path.join(math, 'A.chalkd');
+    const a = path.posix.join(math, 'A.chalkd');
     lib.duplicate(a);
-    expect(lib.duplicate(a)).toBe(path.join(math, 'A copy (2).chalkd'));
+    expect(lib.duplicate(a)).toBe(path.posix.join(math, 'A copy (2).chalkd'));
     expect(names(math).slice(0, 3)).toEqual([
       'A.chalkd',
       'A copy (2).chalkd',
@@ -159,7 +161,7 @@ describe('duplicate', () => {
 describe('remove and ensure', () => {
   it('removes and fixes the order', async () => {
     const { math } = sample();
-    await lib.remove(path.join(math, 'B.chalkd'), trash);
+    await lib.remove(path.posix.join(math, 'B.chalkd'), trash);
     expect(names(math)).toEqual(['A.chalkd', 'C.chalkd', 'Unit']);
   });
 
@@ -168,7 +170,7 @@ describe('remove and ensure', () => {
     await lib.remove(math, trash);
     lib.ensure(t);
     expect(lib.firstBoard()).toBe(
-      path.join('Science', 'Oct 7 · 9:00 AM.chalkd'),
+      path.posix.join('Science', 'Oct 7 · 9∶00 AM.chalkd'),
     );
   });
 });
@@ -183,13 +185,13 @@ describe('BoardSession.around', () => {
   it('reopens the open board at its new path and keeps saving to it', async () => {
     const { math } = sample();
     const { session, settings } = openSession();
-    const board = path.join(math, 'Unit', 'D.chalkd');
+    const board = path.posix.join(math, 'Unit', 'D.chalkd');
     session.open(board);
     const renamed = await session.around(
       () => lib.rename(math, 'Maths'),
       (cur, to) => to + cur.slice(math.length),
     );
-    const now = path.join(renamed, 'Unit', 'D.chalkd');
+    const now = path.posix.join(renamed, 'Unit', 'D.chalkd');
     expect(session.currentPath).toBe(now);
     expect(settings.get('lastBoard')).toBe(now);
 
@@ -211,11 +213,11 @@ describe('BoardSession.around', () => {
   it('reopens the original board if the operation fails', async () => {
     const { math } = sample();
     const { session } = openSession();
-    const board = path.join(math, 'A.chalkd');
+    const board = path.posix.join(math, 'A.chalkd');
     session.open(board);
     await expect(
       session.around(
-        () => lib.move(math, path.join(math, 'Unit'), null),
+        () => lib.move(math, path.posix.join(math, 'Unit'), null),
         () => null,
       ),
     ).rejects.toThrow();

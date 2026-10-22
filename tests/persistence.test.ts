@@ -162,9 +162,7 @@ describe('Library', () => {
     const lib = new Library(path.join(dir, 'Chalkd'));
     lib.ensure(new Date(2026, 9, 7, 10, 42));
     expect(lib.children('')).toEqual(['My Notebook']);
-    expect(lib.firstBoard()).toBe(
-      path.join('My Notebook', 'Oct 7 · 10:42 AM.chalkd'),
-    );
+    expect(lib.firstBoard()).toBe('My Notebook/Oct 7 · 10∶42 AM.chalkd');
   });
 
   it('does nothing when a board already exists', () => {
@@ -224,6 +222,38 @@ describe('Library', () => {
     expect(sanitize('a/b\\c')).toBe('a-b-c');
     expect(sanitize('..secret')).toBe('secret');
     expect(sanitize('   ')).toBe('Untitled');
+  });
+
+  it('makes names that are valid file names on Windows too', () => {
+    expect(sanitize('Oct 7 · 10:42 AM')).toBe('Oct 7 · 10∶42 AM');
+    expect(sanitize('What is a fraction?')).toBe('What is a fraction');
+    expect(sanitize('"Quotes" <and> pipes|')).toBe("'Quotes' -and- pipes-");
+    expect(sanitize('Notes...  ')).toBe('Notes');
+    expect(sanitize('CON')).toBe('CON_');
+    expect(sanitize('nul.backup')).toBe('nul_.backup');
+    expect(sanitize('Console')).toBe('Console');
+    expect(sanitize('***')).toBe('Untitled');
+  });
+
+  it('keeps library paths "/"-separated on every OS', () => {
+    const lib = new Library(dir);
+    const math = lib.createNotebook('', 'Math');
+    const unit = lib.createNotebook(math, 'Unit');
+    const board = lib.createBoard(unit, new Date(2026, 9, 7, 10, 42));
+    expect(board).toBe('Math/Unit/Oct 7 · 10∶42 AM.chalkd');
+    expect(lib.tree()[0].children![0].path).toBe('Math/Unit');
+    expect(lib.rel(lib.abs(board))).toBe(board);
+    expect(lib.abs(board)).toBe(
+      path.join(dir, 'Math', 'Unit', 'Oct 7 · 10∶42 AM.chalkd'),
+    );
+  });
+
+  it('renames a board to a different case of its own name', () => {
+    const lib = new Library(dir);
+    const math = lib.createNotebook('', 'Math');
+    const board = lib.createBoard(math, new Date(), 'fractions');
+    expect(lib.rename(board, 'Fractions')).toBe('Math/Fractions.chalkd');
+    expect(lib.children(math)).toEqual(['Fractions.chalkd']);
   });
 });
 

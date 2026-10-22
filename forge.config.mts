@@ -1,20 +1,55 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
+import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import pkg from './package.json' with { type: 'json' };
+
+const isWindows = process.platform === 'win32';
 
 const config: ForgeConfig = {
   packagerConfig: {
     name: 'Chalkd',
     executableName: 'chalkd',
     asar: true,
+    // Packager adds the extension for each OS (.ico on Windows).
+    icon: 'packaging/icons/chalkd',
+    // The Windows printer's scripts run outside the app, so they ship as
+    // plain files in resources/printer-windows.
+    extraResource: isWindows ? ['scripts/printer-windows'] : [],
+    win32metadata: {
+      CompanyName: 'Dibs',
+      FileDescription: 'Chalkd',
+      ProductName: 'Chalkd',
+    },
   },
   rebuildConfig: {},
   makers: [
-    new MakerZIP({}, ['darwin']),
+    // Windows: Chalkd-<version>-Setup.exe installs for the current user,
+    // without admin rights, and adds Start menu and desktop shortcuts.
+    new MakerSquirrel({
+      name: 'chalkd',
+      authors: 'Dibs',
+      description: pkg.description,
+      setupExe: `Chalkd-${pkg.version}-Setup.exe`,
+      setupIcon: 'packaging/icons/chalkd.ico',
+      // Shown in Settings › Apps; it has to be a URL.
+      iconUrl:
+        'https://raw.githubusercontent.com/DibsCodes/chalkd/main/packaging/icons/chalkd.ico',
+      noMsi: true,
+      // Signing, when there's a certificate: set WINDOWS_CERTIFICATE_FILE
+      // and WINDOWS_CERTIFICATE_PASSWORD (see packaging/windows/README.md).
+      ...(process.env.WINDOWS_CERTIFICATE_FILE
+        ? {
+            certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+            certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+          }
+        : {}),
+    }),
+    new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({}),
     new MakerDeb({}),
   ],

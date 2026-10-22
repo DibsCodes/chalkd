@@ -1,0 +1,64 @@
+name: Build
+
+# Tests on Linux and Windows for every push and pull request. Publishing a
+# GitHub release also builds the Windows installer and attaches it (the Arch
+# package is still built with packaging/arch/PKGBUILD).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Only oxlint for now: oxfmt --check also flags README.md and PLAN.md.
+      - run: npx oxlint
+      - run: npm run typecheck
+      - run: npm run check
+      - run: npm test
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Unsigned for now; packaging/windows/README.md covers signing.
+      - run: npm run make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chalkd-windows
+          path: |
+            out/make/squirrel.windows/x64/*Setup.exe
+            out/make/zip/win32/x64/*.zip
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            out/make/squirrel.windows/x64/*Setup.exe \
+            out/make/zip/win32/x64/*.zip \
+            --clobber

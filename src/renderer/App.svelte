@@ -78,6 +78,17 @@
     } catch (err) {
       showToast(`Couldn't open your board: ${errorMessage(err)}`);
     }
+    // Windows takes three- and four-finger swipes for itself; say so once.
+    if (
+      window.chalkd.system.platform === 'win32' &&
+      navigator.maxTouchPoints > 1 &&
+      !settings.value.touchGestureTipShown
+    ) {
+      showToast(
+        'Tip: for Chalkd’s three- and four-finger gestures (erasing and zooming), turn off Windows’ own touch gestures. Settings (⚙) › Touch shows how.',
+      );
+      settings.update({ touchGestureTipShown: true });
+    }
     // Anything printed while Chalkd was closed, then whatever comes later.
     window.chalkd.print.onWaiting(() => void receivePrints());
     await receivePrints();
